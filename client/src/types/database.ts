@@ -7,6 +7,8 @@ export interface DbProduct {
   status: 'AVAILABLE' | 'UNAVAILABLE'
   type: 'Vegetable' | 'Meat' | 'Fish' | 'Others' | 'Drinks'
   image_path: string | null
+  description: string | null
+  is_best_seller: boolean
 }
 
 export interface DbAddon {

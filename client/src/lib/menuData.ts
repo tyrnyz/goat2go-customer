@@ -176,12 +176,12 @@ export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[]): M
     name: product.productName,
     category,
     price: product.price,
-    description: DESCRIPTION_MAP[product.productName] ?? `Delicious ${product.productName} served hot and fresh.`,
+    description: product.description ?? DESCRIPTION_MAP[product.productName] ?? `Delicious ${product.productName} served hot and fresh.`,
     image: LOCAL_IMAGE_MAP[product.productName] ?? '/other_images/tatuns_logo.png',
     addOns: hasAddOns
       ? addons.map(a => ({ id: a.id, name: a.name, price: a.price }))
       : undefined,
-    isBestSeller: BEST_SELLERS.has(product.productName),
+    isBestSeller: product.is_best_seller ?? BEST_SELLERS.has(product.productName),
   };
 }
 
