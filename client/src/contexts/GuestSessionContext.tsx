@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, setSessionHeader } from "@/lib/supabase";
 
 interface GuestSessionContextType {
   sessionId: string;
@@ -19,7 +19,8 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
       const savedId = localStorage.getItem("goat2go_session_id");
 
       if (savedId) {
-        // Verify the session still exists in the DB
+        setSessionHeader(savedId);
+
         const { data } = await supabase
           .from("guest_sessions")
           .select("id")
@@ -33,7 +34,6 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Create a new session
       const { data: newSession, error } = await supabase
         .from("guest_sessions")
         .insert({})
@@ -42,6 +42,7 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
 
       if (newSession && !error) {
         localStorage.setItem("goat2go_session_id", newSession.id);
+        setSessionHeader(newSession.id);
         setSessionId(newSession.id);
       }
 
