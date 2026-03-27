@@ -6,7 +6,8 @@ export async function fetchProducts(): Promise<DbProduct[]> {
     .from('products')
     .select('*')
     .eq('status', 'AVAILABLE')
-    .order('productID')
+    .eq('is_current', true)
+    .order('"productID"')
 
   if (error) throw error
   return data ?? []

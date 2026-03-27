@@ -1,7 +1,8 @@
-// Matches live Supabase schema — column names are camelCase
+// Matches SE2 shared Supabase schema — column names are camelCase
 
 export interface DbProduct {
   productID: number
+  product_sid: number
   productName: string
   price: number
   status: 'AVAILABLE' | 'UNAVAILABLE'
@@ -9,6 +10,7 @@ export interface DbProduct {
   image_path: string | null
   description: string | null
   is_best_seller: boolean
+  is_current: boolean
 }
 
 export interface DbAddon {
@@ -35,6 +37,7 @@ export interface DbOrderItem {
   orderItemID: number
   orderID: number
   productID: number
+  product_sid: number | null
   quantity: number
   price: number
   selectedAddons: Array<{

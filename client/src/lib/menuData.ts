@@ -171,13 +171,18 @@ export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[]): M
 
   const hasAddOns = ['meat', 'fish', 'vegetables'].includes(category);
 
+  // Prefer Supabase Storage image, fall back to local image
+  const supabaseImageUrl = product.image_path
+    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/product-images/${product.image_path}`
+    : null;
+
   return {
     id: String(product.productID),
     name: product.productName,
     category,
     price: product.price,
     description: product.description ?? DESCRIPTION_MAP[product.productName] ?? `Delicious ${product.productName} served hot and fresh.`,
-    image: LOCAL_IMAGE_MAP[product.productName] ?? '/other_images/tatuns_logo.png',
+    image: supabaseImageUrl ?? LOCAL_IMAGE_MAP[product.productName] ?? '/other_images/tatuns_logo.png',
     addOns: hasAddOns
       ? addons.map(a => ({ id: a.id, name: a.name, price: a.price }))
       : undefined,

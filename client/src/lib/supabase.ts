@@ -7,12 +7,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-const customHeaders: Record<string, string> = {}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: { headers: customHeaders },
-})
-
-export function setSessionHeader(sessionId: string) {
-  customHeaders['x-session-id'] = sessionId
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)

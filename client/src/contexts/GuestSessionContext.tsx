@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase, setSessionHeader } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface GuestSessionContextType {
   sessionId: string;
@@ -19,8 +19,6 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
       const savedId = localStorage.getItem("goat2go_session_id");
 
       if (savedId) {
-        setSessionHeader(savedId);
-
         const { data } = await supabase
           .from("guest_sessions")
           .select("id")
@@ -34,16 +32,16 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const { data: newSession, error } = await supabase
-        .from("guest_sessions")
-        .insert({})
-        .select()
-        .single();
+      // Generate UUID client-side and insert
+      const newId = crypto.randomUUID();
 
-      if (newSession && !error) {
-        localStorage.setItem("goat2go_session_id", newSession.id);
-        setSessionHeader(newSession.id);
-        setSessionId(newSession.id);
+      const { error } = await supabase
+        .from("guest_sessions")
+        .insert({ id: newId });
+
+      if (!error) {
+        localStorage.setItem("goat2go_session_id", newId);
+        setSessionId(newId);
       }
 
       setIsLoading(false);
