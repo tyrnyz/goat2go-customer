@@ -72,11 +72,13 @@ The Goat2Go customer frontend was wired to a live Supabase backend. The app prev
 ## Environment
 
 ```
-VITE_SUPABASE_URL=https://fbhwppufqazydeivqeez.supabase.co
+VITE_SUPABASE_URL=https://ovucquikswfdlexjrdai.supabase.co
 VITE_SUPABASE_ANON_KEY=<your anon key>
 ```
 
 `.env` is gitignored. `.env.example` is committed as a template.
+
+**Note:** This project now uses the shared SE2 Supabase database (project ID: ovucquikswfdlexjrdai). The original test database (fbhwppufqazydeivqeez) is no longer used.
 
 ---
 
