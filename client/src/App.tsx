@@ -1,5 +1,3 @@
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -15,7 +13,7 @@ import OrderType from "./pages/OrderType";
 import Checkout from "./pages/Checkout";
 import QueueConfirmation from "./pages/QueueConfirmation";
 import Receipt from "./pages/Receipt";
-import MyOrders from "./pages/MyOrders"; 
+import MyOrders from "./pages/MyOrders";
 function Router() {
   return (
     <Switch>
@@ -35,28 +33,17 @@ function Router() {
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <GuestSessionProvider>
-            <CartProvider>
-              <OrdersProvider>
-                <Toaster />
-                <Router />
-              </OrdersProvider>
-            </CartProvider>
-          </GuestSessionProvider>
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="light">
+        <GuestSessionProvider>
+          <CartProvider>
+            <OrdersProvider>
+              <Router />
+            </OrdersProvider>
+          </CartProvider>
+        </GuestSessionProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
