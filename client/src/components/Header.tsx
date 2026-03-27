@@ -1,6 +1,5 @@
 import { useLocation } from "wouter";
 import { Home, UtensilsCrossed, ClipboardList, Phone, ShoppingCart } from "lucide-react";
-import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 
 // Added this prop so the Menu page can trigger the CartSidebar!
@@ -106,7 +105,6 @@ export default function Header({ onCartClick }: HeaderProps = {}) {
             )}
           </button>
           
-          <MobileMenu />
         </div>
       </div>
     </header>
