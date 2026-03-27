@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useOrders } from "@/contexts/OrdersContext";
-import { Order } from "@shared/types";
+import { fetchOrderById, fetchOrderItems, subscribeToOrder } from "@/lib/orderService";
+import type { DbOrder, DbOrderItem } from "@/types/database";
 import {
   CheckCircle,
-  Eye,
-  TrendingUp,
   ShoppingBag,
   Utensils,
   Clock,
@@ -16,17 +14,28 @@ import Header from "@/components/Header";
 
 export default function QueueConfirmation() {
   const [, setLocation] = useLocation();
-  const [match] = useRoute("/queue-confirmation/:queueNumber");
-  const { orders } = useOrders();
-  const [order, setOrder] = useState<Order | null>(null);
+  const [, params] = useRoute("/queue-confirmation/:orderId");
+  const [order, setOrder] = useState<DbOrder | null>(null);
+  const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
 
-  // Get the queue number from the most recent order
   useEffect(() => {
-    if (orders.length > 0) {
-      const latestOrder = orders[0];
-      setOrder(latestOrder);
-    }
-  }, [orders]);
+    const orderId = params?.orderId ? parseInt(params.orderId) : null;
+    if (!orderId) return;
+
+    fetchOrderById(orderId).then((data) => {
+      if (data) setOrder(data);
+    });
+
+    fetchOrderItems(orderId).then(setOrderItems);
+
+    const channel = subscribeToOrder(orderId, (updated) => {
+      setOrder(updated);
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [params?.orderId]);
 
   if (!order) {
     return (
@@ -82,14 +91,14 @@ export default function QueueConfirmation() {
           {/* Order Type */}
           <div className="bg-card rounded-xl p-4 border border-border/50 shadow-sm flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-              {order.orderType === "dine-in" ? (
+              {order.orderType === "Dine-In" ? (
                 <Utensils className="w-5 h-5 text-primary" />
               ) : (
                 <ShoppingBag className="w-5 h-5 text-primary" />
               )}
             </div>
             <p className="text-xs text-muted-foreground font-bold mb-1 font-sans">Order Type</p>
-            <p className="text-lg font-bold text-foreground font-sans capitalize">
+            <p className="text-lg font-bold text-foreground font-sans">
               {order.orderType}
             </p>
           </div>
@@ -101,7 +110,7 @@ export default function QueueConfirmation() {
             </div>
             <p className="text-xs text-muted-foreground font-bold mb-1 font-sans">Time Ordered</p>
             <p className="text-lg font-bold text-foreground font-sans">
-              {new Date(order.createdAt).toLocaleTimeString([], {
+              {new Date(order.orderTimestamp).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -115,7 +124,7 @@ export default function QueueConfirmation() {
             </div>
             <p className="text-xs text-muted-foreground font-bold mb-1 font-sans">Items</p>
             <p className="text-lg font-bold text-foreground font-sans">
-              {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+              {orderItems.length} item{orderItems.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -126,7 +135,7 @@ export default function QueueConfirmation() {
             </div>
             <p className="text-xs text-primary font-bold mb-1 font-sans">Total Cost</p>
             <p className="text-lg font-bold text-primary font-sans">
-              ₱{order.total.toFixed(2)}
+              ₱{orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0).toFixed(2)}
             </p>
           </div>
         </div>
@@ -153,7 +162,7 @@ export default function QueueConfirmation() {
         </Button>
 
           <Button
-            onClick={() => setLocation(`/receipt/${order.orderId}`)}
+            onClick={() => setLocation(`/receipt/${order.orderID}`)}
             className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold py-6 rounded-lg text-lg shadow-md flex items-center justify-center gap-2 font-sans"
           >
             View Full Receipt

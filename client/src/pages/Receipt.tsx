@@ -1,27 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
-import { useOrders } from "@/contexts/OrdersContext";
+import { fetchOrderById, fetchOrderItems } from "@/lib/orderService";
+import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Order } from "@shared/types";
+import type { DbOrder, DbOrderItem } from "@/types/database";
 import { CheckCircle, Clock, Home, AlertCircle } from "lucide-react";
 import Header from "@/components/Header";
 
 export default function Receipt() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/receipt/:orderId");
-  const { getOrderById } = useOrders();
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<DbOrder | null>(null);
+  const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
+  const [productNames, setProductNames] = useState<Record<number, string>>({});
 
-  // Get order from context using the orderId from params
   useEffect(() => {
-    if (match && params?.orderId) {
-      const foundOrder = getOrderById(params.orderId);
-      if (foundOrder) {
-        setOrder(foundOrder);
+    if (!match || !params?.orderId) return;
+    const orderId = parseInt(params.orderId);
+
+    fetchOrderById(orderId).then((data) => { if (data) setOrder(data); });
+    fetchOrderItems(orderId).then(async (items) => {
+      setOrderItems(items);
+      if (items.length > 0) {
+        const productIds = items.map(i => i.productID);
+        const { data } = await supabase
+          .from('products')
+          .select('productID, productName')
+          .in('productID', productIds);
+        if (data) {
+          const map: Record<number, string> = {};
+          data.forEach((p: { productID: number; productName: string }) => { map[p.productID] = p.productName; });
+          setProductNames(map);
+        }
       }
-    }
-  }, [match, params?.orderId, getOrderById]);
+    });
+  }, [match, params?.orderId]);
+
+  const subtotal = useMemo(() =>
+    orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0),
+    [orderItems]
+  );
+
+  const discountRate = order?.discountType === 'PWD' || order?.discountType === 'Senior' ? 0.2 : 0;
+  const discountAmount = subtotal * discountRate;
+  const total = subtotal - discountAmount;
 
   if (!order) {
     return (
@@ -40,35 +63,22 @@ export default function Receipt() {
     );
   }
 
-  // Keeping the semantic colors for the status indicators as they are standard UX for order tracking
-  const statusConfig = {
-    preparing: {
-      icon: Clock,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50/50",
-      label: "Preparing Your Order",
-    },
-    ready: {
-      icon: CheckCircle,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50/50",
-      label: "Ready for Pickup",
-    },
-    completed: {
-      icon: CheckCircle,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted/30",
-      label: "Order Completed",
-    },
-    pending: {
+  const statusConfig: Record<string, { icon: typeof Clock; color: string; bgColor: string; label: string }> = {
+    Pending: {
       icon: Clock,
       color: "text-muted-foreground",
       bgColor: "bg-muted/30",
       label: "Pending",
     },
+    Completed: {
+      icon: CheckCircle,
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/30",
+      label: "Order Completed",
+    },
   };
 
-  const config = statusConfig[order.status];
+  const config = statusConfig[order.status] ?? statusConfig["Pending"];
   const StatusIcon = config.icon;
 
   return (
@@ -106,7 +116,7 @@ export default function Receipt() {
             <div>
               <p className={`font-bold font-sans ${config.color}`}>{config.label}</p>
               <p className="text-sm text-muted-foreground font-sans">
-                Status: {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                Status: {order.status}
               </p>
             </div>
           </div>
@@ -118,18 +128,16 @@ export default function Receipt() {
           <div className="space-y-3 text-foreground font-sans">
             <div className="flex justify-between border-b border-border/50 pb-2">
               <span className="text-muted-foreground">Order Type:</span>
-              <span className="font-bold">
-                {order.orderType === "dine-in" ? "Dine-In" : "Take-Out"}
-              </span>
+              <span className="font-bold">{order.orderType}</span>
             </div>
             <div className="flex justify-between border-b border-border/50 pb-2">
               <span className="text-muted-foreground">Order ID:</span>
-              <span className="font-mono text-sm font-bold">{order.orderId}</span>
+              <span className="font-mono text-sm font-bold">{order.orderID}</span>
             </div>
             <div className="flex justify-between pb-2">
               <span className="text-muted-foreground">Placed at:</span>
               <span className="font-bold">
-                {new Date(order.createdAt).toLocaleTimeString()}
+                {new Date(order.orderTimestamp).toLocaleTimeString()}
               </span>
             </div>
           </div>
@@ -139,27 +147,22 @@ export default function Receipt() {
         <Card className="p-4 bg-card shadow-sm border-none">
           <h2 className="text-lg font-bold text-primary font-sans mb-4">Order Items</h2>
           <div className="space-y-3 font-sans">
-            {order.items.map((item) => (
-              <div key={item.itemId} className="flex justify-between pb-3 border-b border-border/50 last:border-0">
+            {orderItems.map((item) => (
+              <div key={item.orderItemID} className="flex justify-between pb-3 border-b border-border/50 last:border-0">
                 <div>
                   <p className="font-bold text-foreground">
-                    {item.itemName} {item.selectedVariant && `(${item.selectedVariant.name})`} x{item.quantity}
+                    {productNames[item.productID] ?? `Product #${item.productID}`} x{item.quantity}
                   </p>
-                  {item.selectedVariant && (
+                  {item.selectedAddons.length > 0 && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      ✓ Variant: {item.selectedVariant.name}
-                    </p>
-                  )}
-                  {item.addOns.length > 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Add-ons: {item.addOns.map((a) => a.name).join(", ")}
+                      Add-ons: {item.selectedAddons.map((a) => a.name).join(", ")}
                     </p>
                   )}
                 </div>
                 <p className="font-bold text-foreground">
                   ₱
                   {(
-                    (item.price + item.addOns.reduce((sum, a) => sum + a.price, 0)) *
+                    (item.price + item.selectedAddons.reduce((sum, a) => sum + a.price, 0)) *
                     item.quantity
                   ).toFixed(2)}
                 </p>
@@ -173,22 +176,21 @@ export default function Receipt() {
           <div className="space-y-3 font-sans">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal:</span>
-              <span className="font-bold text-foreground">₱{order.subtotal.toFixed(2)}</span>
+              <span className="font-bold text-foreground">₱{subtotal.toFixed(2)}</span>
             </div>
 
-            {order.discount.type !== "none" && (
+            {order.discountType !== "None" && (
               <div className="flex justify-between text-green-700">
                 <span>
-                  {order.discount.type === "pwd" ? "PWD" : "Senior"} Discount
-                  (20%):
+                  {order.discountType} Discount (20%):
                 </span>
-                <span className="font-bold">-₱{order.discount.amount.toFixed(2)}</span>
+                <span className="font-bold">-₱{discountAmount.toFixed(2)}</span>
               </div>
             )}
 
             <div className="border-t border-border pt-3 flex justify-between text-xl font-bold text-primary font-sans">
               <span>Total:</span>
-              <span>₱{order.total.toFixed(2)}</span>
+              <span>₱{total.toFixed(2)}</span>
             </div>
           </div>
         </Card>

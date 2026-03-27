@@ -23,7 +23,7 @@ function Router() {
       <Route path={"/order-type"} component={OrderType} />
       <Route path={"/menu"} component={Menu} />
       <Route path={"/checkout"} component={Checkout} />
-      <Route path="/queue-confirmation/:queueNumber" component={QueueConfirmation} />
+      <Route path="/queue-confirmation/:orderId" component={QueueConfirmation} />
       <Route path="/receipt/:orderId" component={Receipt} />
       <Route path={"/my-orders"} component={MyOrders} />
       <Route path={"/contact"} component={Contact} />

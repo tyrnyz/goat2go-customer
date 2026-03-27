@@ -1,10 +1,18 @@
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ArrowRight, Clock, MapPin, ChefHat } from "lucide-react";
 import Header from "@/components/Header";
-import { menuItems } from "@/lib/menuData";
+import { MenuItem, fallbackMenuItems, loadMenuFromSupabase } from "@/lib/menuData";
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(fallbackMenuItems);
+
+  useEffect(() => {
+    loadMenuFromSupabase()
+      .then((items) => setMenuItems(items))
+      .catch(() => setMenuItems(fallbackMenuItems));
+  }, []);
 
   const bestSellerNames = ["Kalderetang Kambing", "Kampukan", "Kare-Kare"];
   const bestSellers = bestSellerNames

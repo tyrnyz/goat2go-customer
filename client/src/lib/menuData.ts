@@ -1,3 +1,6 @@
+import { fetchProducts, fetchAddons } from './menuService'
+import type { DbProduct, DbAddon } from '@/types/database'
+
 export interface AddOn {
   id: string;
   name: string;
@@ -37,6 +40,156 @@ const commonAddOns: AddOn[] = [
   { id: "addon-extra-veggies", name: "Extra Vegetables", price: 30 },
 ];
 
+// Local image map: productName → local image path
+const LOCAL_IMAGE_MAP: Record<string, string> = {
+  "Kare-Kare": "/meat_images/kare_kare.jpg",
+  "Pork Shanghai": "/meat_images/pork_shanghai.jpg",
+  "Bagis na Kalabaw": "/meat_images/bagis_kalabaw.jpg",
+  "Asadong Manok": "/meat_images/asadong_manok.jpg",
+  "Beef with Malunggay": "/meat_images/beef_with_malunggay.jpg",
+  "Crispy Pork Sisig": "/meat_images/crispy_pork_sisig.jpg",
+  "Kalderetang Kambing": "/meat_images/kalderetang_kambing.jpg",
+  "Kampukan": "/meat_images/kampukan.png",
+  "Kilayin Kapampangan": "/meat_images/kilayin_kapampangan.jpg",
+  "Lechon Kawali": "/meat_images/lechon_kawali.jpg",
+  "Nilagang Baka": "/meat_images/nilagang_baka.jpg",
+  "Papaitan Kambing": "/meat_images/papaitan_kambing.jpg",
+  "Pork Dinuguan": "/meat_images/pork_dinuguan.jpg",
+  "Spare Ribs Bulanglang": "/meat_images/spare_ribs_bulanglang.jpg",
+  "Spicy Goat Adobo": "/meat_images/spicy_goat_adobo.jpg",
+  "Tinolang Manok": "/meat_images/tinolang_manok.jpg",
+  "Tokwa't Baboy": "/meat_images/tokwa_t_baboy.jpg",
+  "Buro with Veggies": "/veggies_images/buro_with_veggies.jpg",
+  "Chopseuy": "/veggies_images/chopseuy.jpg",
+  "Ensalada": "/veggies_images/ensalada.jpg",
+  "Ginataang Sitaw at Kalabasa": "/veggies_images/ginataang_sitaw_at_kalabasa.jpg",
+  "Ginisang Upo": "/veggies_images/ginisang_upo.jpg",
+  "Lagat Ampalaya": "/veggies_images/lagat_ampalaya.jpg",
+  "Munggo": "/veggies_images/munggo.jpg",
+  "Pinakbet": "/veggies_images/pinakbet.jpg",
+  "Sayote Tops": "/veggies_images/sayote_tops.jpg",
+  "Sisig Puso ng Saging": "/veggies_images/sisig_puso_ng_saging.jpg",
+  "Adobong Pusit": "/fish_images/adobong_pusit.jpg",
+  "Daing na Bangus": "/fish_images/daing_na_bangus.jpg",
+  "Sarsiadong Tilapia": "/fish_images/sarsiadong_tilapia.jpg",
+  "Sinigang na Bangus": "/fish_images/sinigang_na_bangus.jpg",
+  "Sinigang na Pampano": "/fish_images/sinigang_na_pampano.jpg",
+  "Steamed Pampano": "/fish_images/steamed_pampano.jpg",
+  "Inihaw na Hito": "/fish_images/hito.jpg",
+  "Fried Tilapia": "/fish_images/fried_tilapia.png",
+  "Rice": "/other_images/rice.png",
+  "Half-Rice": "/other_images/rice.png",
+  "Alamang in Jar": "/others_images/alamang_in_jar.jpg",
+  "Spicy Alamang Jar": "/others_images/spicy_alamang_jar.jpg",
+  "Buro in Jar": "/others_images/buro_in_jar.jpg",
+  "Leche Flan": "/dessert_images/leche_flan.png",
+  "Turon": "/dessert_images/turon.png",
+  "Canned Soda": "/drinks_images/soda.png",
+  "Bottled Water": "/drinks_images/water.jpg",
+  "Mountain Dew": "/drinks_images/mt_dew.jpg",
+};
+
+const DESCRIPTION_MAP: Record<string, string> = {
+  "Kare-Kare": "Delicious Kare-Kare served hot and fresh.",
+  "Pork Shanghai": "Delicious Pork Shanghai served hot and fresh.",
+  "Bagis na Kalabaw": "Delicious Bagis na Kalabaw served hot and fresh.",
+  "Asadong Manok": "Delicious Asadong Manok served hot and fresh.",
+  "Beef with Malunggay": "Delicious Beef with Malunggay served hot and fresh.",
+  "Crispy Pork Sisig": "Delicious Crispy Pork Sisig served hot and fresh.",
+  "Kalderetang Kambing": "Delicious Kalderetang Kambing served hot and fresh.",
+  "Kampukan": "Goat meat stew with liver and other offal, cooked in a rich broth.",
+  "Kilayin Kapampangan": "Delicious Kilayin Kapampangan served hot and fresh.",
+  "Lechon Kawali": "Delicious Lechon Kawali served hot and fresh.",
+  "Nilagang Baka": "Delicious Nilagang Baka served hot and fresh.",
+  "Papaitan Kambing": "Delicious Papaitan Kambing served hot and fresh.",
+  "Pork Dinuguan": "Delicious Pork Dinuguan served hot and fresh.",
+  "Spare Ribs Bulanglang": "Delicious Spare Ribs Bulanglang served hot and fresh.",
+  "Spicy Goat Adobo": "Delicious Spicy Goat Adobo served hot and fresh.",
+  "Tinolang Manok": "Delicious Tinolang Manok served hot and fresh.",
+  "Tokwa't Baboy": "Delicious Tokwa't Baboy served hot and fresh.",
+  "Buro with Veggies": "Delicious Buro with Veggies served hot and fresh.",
+  "Chopseuy": "Delicious Chopseuy served hot and fresh.",
+  "Ensalada": "Delicious Ensalada served hot and fresh.",
+  "Ginataang Sitaw at Kalabasa": "Delicious Ginataang Sitaw at Kalabasa served hot and fresh.",
+  "Ginisang Upo": "Delicious Ginisang Upo served hot and fresh.",
+  "Lagat Ampalaya": "Delicious Lagat Ampalaya served hot and fresh.",
+  "Munggo": "Delicious Munggo served hot and fresh.",
+  "Pinakbet": "Delicious Pinakbet served hot and fresh.",
+  "Sayote Tops": "Delicious Sayote Tops served hot and fresh.",
+  "Sisig Puso ng Saging": "Delicious Sisig Puso ng Saging served hot and fresh.",
+  "Adobong Pusit": "Delicious Adobong Pusit served hot and fresh.",
+  "Daing na Bangus": "Delicious Daing na Bangus served hot and fresh.",
+  "Sarsiadong Tilapia": "Delicious Sarsiadong Tilapia served hot and fresh.",
+  "Sinigang na Bangus": "Delicious Sinigang na Bangus served hot and fresh.",
+  "Sinigang na Pampano": "Delicious Sinigang na Pampano served hot and fresh.",
+  "Steamed Pampano": "Delicious Steamed Pampano served hot and fresh.",
+  "Inihaw na Hito": "Delicious Inihaw na Hito served hot and fresh.",
+  "Fried Tilapia": "Delicious Fried Tilapia served hot and fresh.",
+  "Rice": "Steamed white rice.",
+  "Half-Rice": "Half serving of steamed white rice.",
+  "Alamang in Jar": "Delicious Alamang in Jar.",
+  "Spicy Alamang Jar": "Spicy Alamang in a jar.",
+  "Buro in Jar": "Delicious Buro in Jar.",
+  "Leche Flan": "Creamy custard tart with caramel topping. Sweet and decadent.",
+  "Turon": "Crispy banana roll with caramel.",
+  "Canned Soda": "Ice cold canned sodas.",
+  "Bottled Water": "Refreshing bottled mineral water.",
+  "Mountain Dew": "Refreshing Mountain Dew.",
+};
+
+const BEST_SELLERS = new Set([
+  "Kare-Kare",
+  "Kalderetang Kambing",
+  "Kampukan",
+  "Lechon Kawali",
+  "Crispy Pork Sisig",
+  "Papaitan Kambing",
+  "Adobong Pusit",
+  "Sinigang na Pampano",
+  "Inihaw na Hito",
+  "Ginataang Sitaw at Kalabasa",
+]);
+
+// Products that are desserts regardless of their DB type
+const DESSERT_NAMES = new Set(["Leche Flan", "Turon"]);
+
+function mapDbTypeToCategory(type: DbProduct['type']): string {
+  switch (type) {
+    case 'Vegetable': return 'vegetables';
+    case 'Meat': return 'meat';
+    case 'Fish': return 'fish';
+    case 'Others': return 'addons';
+    case 'Drinks': return 'drinks';
+    default: return 'addons';
+  }
+}
+
+export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[]): MenuItem {
+  const category = DESSERT_NAMES.has(product.productName)
+    ? 'dessert'
+    : mapDbTypeToCategory(product.type);
+
+  const hasAddOns = ['meat', 'fish', 'vegetables'].includes(category);
+
+  return {
+    id: String(product.productID),
+    name: product.productName,
+    category,
+    price: product.price,
+    description: product.description ?? DESCRIPTION_MAP[product.productName] ?? `Delicious ${product.productName} served hot and fresh.`,
+    image: LOCAL_IMAGE_MAP[product.productName] ?? '/other_images/tatuns_logo.png',
+    addOns: hasAddOns
+      ? addons.map(a => ({ id: a.id, name: a.name, price: a.price }))
+      : undefined,
+    isBestSeller: product.is_best_seller ?? BEST_SELLERS.has(product.productName),
+  };
+}
+
+export async function loadMenuFromSupabase(): Promise<MenuItem[]> {
+  const [products, addons] = await Promise.all([fetchProducts(), fetchAddons()]);
+  return products.map(p => mapDbProductToMenuItem(p, addons));
+}
+
 export const categories: MenuCategory[] = [
   { id: "best-sellers", name: "Best Sellers" },
   { id: "meat", name: "Meat" },
@@ -47,10 +200,10 @@ export const categories: MenuCategory[] = [
   { id: "addons", name: "Add-ons" },
 ];
 
-export const menuItems: MenuItem[] = [
+export const fallbackMenuItems: MenuItem[] = [
   // MEAT CATEGORY
   {
-    id: "item-1",
+    id: "18",
     name: "Kare-Kare",
     category: "meat",
     price: 220.00,
@@ -60,7 +213,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-2",
+    id: "21",
     name: "Pork Shanghai",
     category: "meat",
     price: 189.00,
@@ -69,7 +222,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-3",
+    id: "22",
     name: "Bagis na Kalabaw",
     category: "meat",
     price: 189.00,
@@ -78,7 +231,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-4",
+    id: "15",
     name: "Asadong Manok",
     category: "meat",
     price: 220.00,
@@ -87,7 +240,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-5",
+    id: "23",
     name: "Beef with Malunggay",
     category: "meat",
     price: 220.00,
@@ -96,7 +249,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-6",
+    id: "24",
     name: "Crispy Pork Sisig",
     category: "meat",
     price: 189.00,
@@ -106,7 +259,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-7",
+    id: "25",
     name: "Kalderetang Kambing",
     category: "meat",
     price: 185.00,
@@ -126,7 +279,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-8",
+    id: "26",
     name: "Kilayin Kapampangan",
     category: "meat",
     price: 189.00,
@@ -135,7 +288,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-9",
+    id: "27",
     name: "Lechon Kawali",
     category: "meat",
     price: 189.00,
@@ -145,7 +298,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-10",
+    id: "28",
     name: "Nilagang Baka",
     category: "meat",
     price: 220.00,
@@ -154,7 +307,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-11",
+    id: "29",
     name: "Papaitan Kambing",
     category: "meat",
     price: 185.00,
@@ -164,7 +317,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-12",
+    id: "30",
     name: "Pork Dinuguan",
     category: "meat",
     price: 220.00,
@@ -173,7 +326,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-13",
+    id: "31",
     name: "Spare Ribs Bulanglang",
     category: "meat",
     price: 220.00,
@@ -182,7 +335,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-14",
+    id: "32",
     name: "Spicy Goat Adobo",
     category: "meat",
     price: 185.00,
@@ -191,7 +344,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-15",
+    id: "33",
     name: "Tinolang Manok",
     category: "meat",
     price: 220.00,
@@ -200,7 +353,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-16",
+    id: "34",
     name: "Tokwa't Baboy",
     category: "meat",
     price: 189.00,
@@ -211,7 +364,7 @@ export const menuItems: MenuItem[] = [
 
   // VEGETABLES CATEGORY
   {
-    id: "item-17",
+    id: "14",
     name: "Buro with Veggies",
     category: "vegetables",
     price: 170.00,
@@ -220,7 +373,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-18",
+    id: "13",
     name: "Chopseuy",
     category: "vegetables",
     price: 170.00,
@@ -229,7 +382,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-19",
+    id: "12",
     name: "Ensalada",
     category: "vegetables",
     price: 170.00,
@@ -238,7 +391,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-20",
+    id: "11",
     name: "Ginataang Sitaw at Kalabasa",
     category: "vegetables",
     price: 170.00,
@@ -248,7 +401,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-21",
+    id: "10",
     name: "Ginisang Upo",
     category: "vegetables",
     price: 170.00,
@@ -257,7 +410,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-22",
+    id: "9",
     name: "Lagat Ampalaya",
     category: "vegetables",
     price: 170.00,
@@ -266,7 +419,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-23",
+    id: "8",
     name: "Munggo",
     category: "vegetables",
     price: 170.00,
@@ -275,7 +428,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-24",
+    id: "7",
     name: "Pinakbet",
     category: "vegetables",
     price: 170.00,
@@ -284,7 +437,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-25",
+    id: "6",
     name: "Sayote Tops",
     category: "vegetables",
     price: 170.00,
@@ -293,7 +446,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-26",
+    id: "5",
     name: "Sisig Puso ng Saging",
     category: "vegetables",
     price: 170.00,
@@ -304,7 +457,7 @@ export const menuItems: MenuItem[] = [
 
   // FISH CATEGORY
   {
-    id: "item-27",
+    id: "35",
     name: "Adobong Pusit",
     category: "fish",
     price: 220.00,
@@ -314,7 +467,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-28",
+    id: "36",
     name: "Daing na Bangus",
     category: "fish",
     price: 199.00,
@@ -323,7 +476,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-29",
+    id: "37",
     name: "Sarsiadong Tilapia",
     category: "fish",
     price: 189.00,
@@ -332,7 +485,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-30",
+    id: "38",
     name: "Sinigang na Bangus",
     category: "fish",
     price: 220.00,
@@ -341,7 +494,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-31",
+    id: "39",
     name: "Sinigang na Pampano",
     category: "fish",
     price: 299.00,
@@ -351,7 +504,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-32",
+    id: "40",
     name: "Steamed Pampano",
     category: "fish",
     price: 220.00,
@@ -360,7 +513,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-33",
+    id: "41",
     name: "Inihaw na Hito",
     category: "fish",
     price: 189.00,
@@ -370,7 +523,7 @@ export const menuItems: MenuItem[] = [
     addOns: commonAddOns,
   },
   {
-    id: "item-34",
+    id: "42",
     name: "Fried Tilapia",
     category: "fish",
     price: 189.00,
@@ -381,7 +534,7 @@ export const menuItems: MenuItem[] = [
 
   // ADDONS CATEGORY
   {
-    id: "item-35",
+    id: "43",
     name: "Rice",
     category: "addons",
     price: 30.00,
@@ -389,7 +542,7 @@ export const menuItems: MenuItem[] = [
     image: "/other_images/rice.png",
   },
   {
-    id: "item-36",
+    id: "45",
     name: "Half-Rice",
     category: "addons",
     price: 20.00,
@@ -397,7 +550,7 @@ export const menuItems: MenuItem[] = [
     image: "/other_images/rice.png",
   },
   {
-    id: "item-37",
+    id: "46",
     name: "Alamang in Jar",
     category: "addons",
     price: 160.00,
@@ -405,7 +558,7 @@ export const menuItems: MenuItem[] = [
     image: "/others_images/alamang_in_jar.jpg",
   },
   {
-    id: "item-38",
+    id: "47",
     name: "Spicy Alamang Jar",
     category: "addons",
     price: 160.00,
@@ -413,7 +566,7 @@ export const menuItems: MenuItem[] = [
     image: "/others_images/spicy_alamang_jar.jpg",
   },
   {
-    id: "item-39",
+    id: "48",
     name: "Buro in Jar",
     category: "addons",
     price: 160.00,
@@ -423,7 +576,7 @@ export const menuItems: MenuItem[] = [
 
   // DESSERT CATEGORY
   {
-    id: "item-40",
+    id: "49",
     name: "Leche Flan",
     category: "dessert",
     price: 220.00,
@@ -431,7 +584,7 @@ export const menuItems: MenuItem[] = [
     image: "/dessert_images/leche_flan.png",
   },
   {
-    id: "item-41",
+    id: "50",
     name: "Turon",
     category: "dessert",
     price: 25.00,
@@ -455,7 +608,7 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: "item-43",
+    id: "51",
     name: "Bottled Water",
     category: "drinks",
     price: 30.00,
@@ -472,21 +625,25 @@ export const menuItems: MenuItem[] = [
   },
 ];
 
+// Alias for backward compatibility
+export const menuItems = fallbackMenuItems;
+
 export function getMenuItemsByCategory(categoryId: string): MenuItem[] {
   if (categoryId === "best-sellers") {
-    return menuItems.filter((item) => item.isBestSeller);
+    return fallbackMenuItems.filter((item) => item.isBestSeller);
   }
-  return menuItems.filter((item) => item.category === categoryId);
+  return fallbackMenuItems.filter((item) => item.category === categoryId);
 }
 
 export function searchMenuItems(query: string): MenuItem[] {
   const lowerQuery = query.toLowerCase();
-  return menuItems.filter(
+  return fallbackMenuItems.filter(
     (item) =>
       item.name.toLowerCase().includes(lowerQuery) ||
       item.description.toLowerCase().includes(lowerQuery)
   );
 }
+
 export function getMenuItemById(id: string): MenuItem | undefined {
-  return menuItems.find((item) => item.id === id);
+  return fallbackMenuItems.find((item) => item.id === id);
 }

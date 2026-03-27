@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { GuestSession } from "@shared/types";
+import { supabase } from "@/lib/supabase";
 
 interface GuestSessionContextType {
   sessionId: string;
@@ -15,36 +15,41 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Try to get existing session from localStorage
-    const savedSession = localStorage.getItem("guestSession");
+    const init = async () => {
+      const savedId = localStorage.getItem("goat2go_session_id");
 
-    if (savedSession) {
-      try {
-        const session: GuestSession = JSON.parse(savedSession);
-        setSessionId(session.sessionId);
-      } catch {
-        // Invalid JSON, create new session
-        createNewSession();
+      if (savedId) {
+        // Verify the session still exists in the DB
+        const { data } = await supabase
+          .from("guest_sessions")
+          .select("id")
+          .eq("id", savedId)
+          .single();
+
+        if (data) {
+          setSessionId(savedId);
+          setIsLoading(false);
+          return;
+        }
       }
-    } else {
-      createNewSession();
-    }
 
-    setIsLoading(false);
-  }, []);
+      // Create a new session
+      const { data: newSession, error } = await supabase
+        .from("guest_sessions")
+        .insert({})
+        .select()
+        .single();
 
-  const createNewSession = () => {
-    const newSessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const session: GuestSession = {
-      sessionId: newSessionId,
-      createdAt: Date.now(),
-      orderType: null,
-      isActive: true,
+      if (newSession && !error) {
+        localStorage.setItem("goat2go_session_id", newSession.id);
+        setSessionId(newSession.id);
+      }
+
+      setIsLoading(false);
     };
 
-    localStorage.setItem("guestSession", JSON.stringify(session));
-    setSessionId(newSessionId);
-  };
+    init();
+  }, []);
 
   return (
     <GuestSessionContext.Provider value={{ sessionId, isLoading }}>

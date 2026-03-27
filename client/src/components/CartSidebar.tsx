@@ -15,7 +15,7 @@ export default function CartSidebar({ isOpen, onClose, onEdit }: CartSidebarProp
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const hasVariants = (item: CartItem): boolean => {
-    return item.itemId === "item-42"; // Ensure this matches your Canned Soda ID
+    return item.selectedVariant !== undefined;
   };
 
   return (

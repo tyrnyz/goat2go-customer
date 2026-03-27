@@ -3,26 +3,22 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useCart } from "@/contexts/CartContext";
-import { useOrders } from "@/contexts/OrdersContext";
 import { useGuestSession } from "@/contexts/GuestSessionContext";
-import { Order, DiscountType } from "@shared/types";
+import { placeOrder } from "@/lib/orderService";
 import { ChevronLeft, Utensils, ShoppingBag } from "lucide-react";
 import Header from "@/components/Header";
 
+type DiscountType = "none" | "pwd" | "senior";
+
 const DISCOUNT_RATES: Record<DiscountType, number> = {
   none: 0,
-  pwd: 0.2, // 20%
-  senior: 0.2, // 20%
+  pwd: 0.2,
+  senior: 0.2,
 };
-
-function generateOrderId(): string {
-  return `ORD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const { items, orderType, setOrderType, clearCart } = useCart();
-  const { orders, addOrder } = useOrders(); 
   const { sessionId } = useGuestSession();
   
   const [discountType, setDiscountType] = useState<DiscountType>("none");
@@ -72,38 +68,36 @@ export default function Checkout() {
   const handlePlaceOrder = async () => {
     setIsPlacing(true);
     try {
-      const todayStr = new Date().toDateString();
-      let nextQueueNum = 1;
+      const dbOrderType = orderType === "dine-in" ? "Dine-In" : "Take-Out";
+      const dbDiscountType = discountType === "pwd" ? "PWD" : discountType === "senior" ? "Senior" : "None";
 
-      if (orders && orders.length > 0) {
-        const todaysOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === todayStr);
-        if (todaysOrders.length > 0) {
-          const maxQueue = todaysOrders.reduce((max, o) => {
-            const numMatch = o.queueNumber.match(/\d+/);
-            const num = numMatch ? parseInt(numMatch[0], 10) : 0;
-            return num > max ? num : max;
-          }, 0);
-          nextQueueNum = maxQueue + 1;
-        }
+      // NOTE: cart must be cleared if item IDs change (e.g. after fallback→DB ID migration)
+      // Items with non-numeric IDs (Kampukan, Canned Soda, Mountain Dew) are skipped
+      const validItems = items
+        .map((item) => ({
+          productId: parseInt(item.itemId),
+          quantity: item.quantity,
+          price: item.price,
+          selectedAddons: (item.addOns ?? []).map((a) => ({ id: a.id, name: a.name, price: a.price })),
+        }))
+        .filter((item) => !isNaN(item.productId));
+
+      if (validItems.length === 0) {
+        alert("No valid items to order. Please refresh the menu and try again.");
+        return;
       }
-      
-      const queueNumber = `Q-${String(nextQueueNum).padStart(3, "0")}`;
-      const newOrder: Order = {
-        orderId: generateOrderId(),
-        queueNumber,
-        sessionId,
-        orderType,
-        items,
-        subtotal,
-        discount: { type: discountType, percentage: discountPercentage, amount: discountAmount },
-        total,
-        status: "pending",
-        createdAt: Date.now(),
-      };
 
-      addOrder(newOrder);
+      const result = await placeOrder({
+        sessionId,
+        orderType: dbOrderType,
+        discountType: dbDiscountType,
+        items: validItems,
+      });
+
       clearCart();
-      setLocation(`/queue-confirmation/${queueNumber}`);
+      setLocation(`/queue-confirmation/${result.orderID}`);
+    } catch (err) {
+      alert(`Failed to place order: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
     } finally {
       setIsPlacing(false);
     }

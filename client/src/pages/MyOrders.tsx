@@ -1,46 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useOrders } from "@/contexts/OrdersContext";
+import { useGuestSession } from "@/contexts/GuestSessionContext";
+import { fetchOrdersBySession } from "@/lib/orderService";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, CheckCircle, Clock, AlertCircle, List } from "lucide-react";
-import { Order } from "@shared/types";
+import { CheckCircle, Clock, List } from "lucide-react";
+import type { DbOrder } from "@/types/database";
 import Header from "@/components/Header";
 
-function getStatusColor(status: Order["status"]) {
+function getStatusColor(status: DbOrder["status"]) {
   switch (status) {
-    case "preparing":
-      return "bg-blue-50 border-blue-200 text-blue-700";
-    case "ready":
-      return "bg-amber-50 border-amber-200 text-amber-700";
-    case "completed":
+    case "Completed":
       return "bg-gray-50 border-gray-200 text-gray-700";
     default:
       return "bg-gray-50 border-gray-200 text-gray-700";
   }
 }
 
-// Reduced icon size from w-5 to w-4 for a more compact look
-function getStatusIcon(status: Order["status"]) {
+function getStatusIcon(status: DbOrder["status"]) {
   switch (status) {
-    case "preparing":
-      return <Clock className="w-4 h-4" />;
-    case "ready":
-      return <AlertCircle className="w-4 h-4" />;
-    case "completed":
+    case "Completed":
       return <CheckCircle className="w-4 h-4" />;
     default:
       return <Clock className="w-4 h-4" />;
   }
 }
 
-function getStatusLabel(status: Order["status"]) {
+function getStatusLabel(status: DbOrder["status"]) {
   switch (status) {
-    case "preparing":
-      return "Preparing";
-    case "ready":
-      return "Ready to Pickup";
-    case "completed":
+    case "Completed":
       return "Completed";
     default:
       return "Pending";
@@ -49,26 +37,33 @@ function getStatusLabel(status: Order["status"]) {
 
 export default function MyOrders() {
   const [, setLocation] = useLocation();
-  const { orders } = useOrders();
-  
+  const { sessionId } = useGuestSession();
+  const [orders, setOrders] = useState<DbOrder[]>([]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchOrdersBySession(sessionId).then(setOrders);
+    }
+  }, [sessionId]);
+
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "completed">("all");
 
-  const displayedOrders = statusFilter === "all" 
-    ? orders 
+  const displayedOrders = statusFilter === "all"
+    ? orders
     : statusFilter === "pending"
-      ? orders.filter((order) => order.status !== "completed")
-      : orders.filter((order) => order.status === "completed");
+      ? orders.filter((order) => order.status !== "Completed")
+      : orders.filter((order) => order.status === "Completed");
 
   // Highly Compact Order Card Layout
-  const OrderCard = ({ order }: { order: Order }) => (
-    <Card className={`border-l-4 hover:shadow-md transition-shadow bg-card ${order.status === 'completed' ? 'border-l-gray-400 opacity-80' : 'border-l-primary'}`}>
+  const OrderCard = ({ order }: { order: DbOrder }) => (
+    <Card className={`border-l-4 hover:shadow-md transition-shadow bg-card ${order.status === 'Completed' ? 'border-l-gray-400 opacity-80' : 'border-l-primary'}`}>
       <div className="p-3 md:p-4">
         
         {/* Top Row: Queue, Status Badge, Total Price */}
         <div className="flex justify-between items-start mb-2 border-b border-border/50 pb-2">
           <div>
             <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-wider font-sans mb-0.5">Queue</p>
-            <p className={`text-2xl md:text-3xl font-bold font-sans leading-none ${order.status === 'completed' ? 'text-gray-600' : 'text-primary'}`}>
+            <p className={`text-2xl md:text-3xl font-bold font-sans leading-none ${order.status === 'Completed' ? 'text-gray-600' : 'text-primary'}`}>
               {order.queueNumber}
             </p>
           </div>
@@ -80,8 +75,8 @@ export default function MyOrders() {
                 {getStatusLabel(order.status)}
               </span>
             </div>
-            <p className={`font-bold font-sans text-sm md:text-base ${order.status === 'completed' ? 'text-gray-700' : 'text-primary'}`}>
-              ₱{order.total.toFixed(2)}
+            <p className={`font-bold font-sans text-sm md:text-base ${order.status === 'Completed' ? 'text-gray-700' : 'text-primary'}`}>
+              #{order.orderID}
             </p>
           </div>
         </div>
@@ -89,25 +84,24 @@ export default function MyOrders() {
         {/* Middle Row: Type, Time, and Items */}
         <div className="mb-3 space-y-1.5">
           <div className="flex gap-4 text-xs font-sans text-gray-600">
-            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Type:</strong> {order.orderType === "dine-in" ? "Dine-In" : "Take-Out"}</span>
-            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Time:</strong> {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Type:</strong> {order.orderType}</span>
+            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Time:</strong> {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           
-          {/* Items string compressed to 1 or 2 lines */}
           <div className="text-xs font-sans text-gray-600 line-clamp-2 leading-relaxed">
-            <span className="font-bold text-gray-700">Items: </span>
-            {order.items.map(i => `${i.quantity}x ${i.itemName}`).join(", ")}
+            <span className="font-bold text-gray-700">Queue: </span>
+            {order.queueNumber ?? "Pending"}
           </div>
         </div>
 
         {/* Bottom Row: Slim Action Button */}
         <Button
-          onClick={() => setLocation(`/receipt/${order.orderId}`)}
+          onClick={() => setLocation(`/receipt/${order.orderID}`)}
           variant="outline"
           size="sm"
           className={`w-full h-8 text-xs font-sans font-bold ${
-            order.status === 'completed' 
-              ? 'text-gray-600 border-gray-400 hover:bg-gray-100' 
+            order.status === 'Completed'
+              ? 'text-gray-600 border-gray-400 hover:bg-gray-100'
               : 'text-primary border-primary hover:bg-primary/10'
           }`}
         >
@@ -144,7 +138,7 @@ export default function MyOrders() {
         {displayedOrders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {displayedOrders.map((order) => (
-              <OrderCard key={order.orderId} order={order} />
+              <OrderCard key={order.orderID} order={order} />
             ))}
           </div>
         ) : (

@@ -1,64 +1,45 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useGuestSession } from "./GuestSessionContext";
-import { Order, OrderHistory } from "@shared/types";
+import { fetchOrdersBySession } from "@/lib/orderService";
+import type { DbOrder } from "@/types/database";
 
 interface OrdersContextType {
-  orders: Order[];
-  addOrder: (order: Order) => void;
-  updateOrderStatus: (orderId: string, status: Order["status"]) => void;
-  getOrderById: (orderId: string) => Order | undefined;
+  orders: DbOrder[];
+  refreshOrders: () => Promise<void>;
+  getOrderById: (orderId: number) => DbOrder | undefined;
 }
 
 const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
   const { sessionId } = useGuestSession();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<DbOrder[]>([]);
 
-  // Load orders from localStorage on mount
+  const loadOrders = async () => {
+    if (!sessionId) return;
+    const fetched = await fetchOrdersBySession(sessionId);
+    setOrders(fetched);
+  };
+
   useEffect(() => {
-    const ordersKey = `orders_${sessionId}`;
-    const savedOrders = localStorage.getItem(ordersKey);
-
-    if (savedOrders) {
-      try {
-        const orderHistory: OrderHistory = JSON.parse(savedOrders);
-        setOrders(orderHistory.orders);
-      } catch {
-        setOrders([]);
-      }
+    if (sessionId) {
+      loadOrders();
     }
   }, [sessionId]);
 
-  // Save orders to localStorage whenever they change
-  useEffect(() => {
-    const ordersKey = `orders_${sessionId}`;
-    const orderHistory: OrderHistory = { orders };
-    localStorage.setItem(ordersKey, JSON.stringify(orderHistory));
-  }, [orders, sessionId]);
-
-  const addOrder = (order: Order) => {
-    setOrders((prevOrders) => [order, ...prevOrders]);
+  const refreshOrders = async () => {
+    await loadOrders();
   };
 
-  const updateOrderStatus = (orderId: string, status: Order["status"]) => {
-    setOrders((prevOrders) =>
-      prevOrders.map((order) =>
-        order.orderId === orderId ? { ...order, status } : order
-      )
-    );
-  };
-
-  const getOrderById = (orderId: string): Order | undefined => {
-    return orders.find((order) => order.orderId === orderId);
+  const getOrderById = (orderId: number): DbOrder | undefined => {
+    return orders.find((order) => order.orderID === orderId);
   };
 
   return (
     <OrdersContext.Provider
       value={{
         orders,
-        addOrder,
-        updateOrderStatus,
+        refreshOrders,
         getOrderById,
       }}
     >

@@ -6,22 +6,20 @@ import MenuItemCard from "@/components/MenuItemCard";
 import ItemDetailsModal from "@/components/ItemDetailsModal";
 import CartSidebar from "@/components/CartSidebar";
 import { useCart } from "@/contexts/CartContext";
-import { 
-  MenuItem, 
-  AddOn, 
-  Variant, 
-  categories, 
-  getMenuItemsByCategory, 
-  searchMenuItems,
-  getMenuItemById 
+import {
+  MenuItem,
+  AddOn,
+  Variant,
+  categories,
+  fallbackMenuItems,
+  loadMenuFromSupabase,
 } from "@/lib/menuData";
 
 export default function Menu() {
   const [, setLocation] = useLocation();
-  // Changed initial state to 'best-sellers'
   const [selectedCategory, setSelectedCategory] = useState("best-sellers");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState<MenuItem & { 
+  const [selectedItem, setSelectedItem] = useState<MenuItem & {
     editingCartId?: string;
     currentQuantity?: number;
     currentVariant?: { id: string; name: string };
@@ -29,10 +27,23 @@ export default function Menu() {
   } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  
+
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(fallbackMenuItems);
+  const [isLoading, setIsLoading] = useState(true);
+
   const { addToCart, orderType, setOrderType, updateItem } = useCart();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const tabContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadMenuFromSupabase()
+      .then((items) => setMenuItems(items))
+      .catch((err) => {
+        console.error("Failed to load menu from Supabase, using fallback:", err);
+        setMenuItems(fallbackMenuItems);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   useEffect(() => {
     if (searchQuery.length > 0) return;
@@ -85,6 +96,22 @@ export default function Menu() {
     setIsModalOpen(false);
   };
 
+  const getItemsByCategory = (categoryId: string): MenuItem[] => {
+    if (categoryId === "best-sellers") {
+      return menuItems.filter((item) => item.isBestSeller);
+    }
+    return menuItems.filter((item) => item.category === categoryId);
+  };
+
+  const searchItems = (query: string): MenuItem[] => {
+    const lowerQuery = query.toLowerCase();
+    return menuItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowerQuery) ||
+        item.description.toLowerCase().includes(lowerQuery)
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <div className="sticky top-0 z-50 bg-background shadow-sm border-b">
@@ -124,19 +151,24 @@ export default function Menu() {
       </div>
 
       <main className="container px-3 sm:px-4 py-8 pb-32">
-        {searchQuery.length > 0 ? (
+        {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {searchMenuItems(searchQuery).map((item) => (
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="rounded-xl bg-muted animate-pulse h-48" />
+            ))}
+          </div>
+        ) : searchQuery.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {searchItems(searchQuery).map((item) => (
               <MenuItemCard key={item.id} item={item} onAddToCart={() => { setSelectedItem(item); setIsModalOpen(true); }} onViewDetails={() => { setSelectedItem(item); setIsModalOpen(true); }} />
             ))}
           </div>
         ) : (
-          // Mapping over ALL categories directly
           categories.map((cat) => {
-            const items = getMenuItemsByCategory(cat.id);
+            const items = getItemsByCategory(cat.id);
             if (items.length === 0) return null;
             return (
-              <div key={cat.id} id={cat.id} ref={(el) => (sectionRefs.current[cat.id] = el)} className="mb-12 scroll-mt-40">
+              <div key={cat.id} id={cat.id} ref={(el) => { sectionRefs.current[cat.id] = el; }} className="mb-12 scroll-mt-40">
                 <h2 className="text-2xl font-bold mb-6 text-primary border-b pb-2 font-sans">{cat.name}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {items.map((item) => (
@@ -153,7 +185,7 @@ export default function Menu() {
 
       {selectedItem && <ItemDetailsModal item={selectedItem} isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setSelectedItem(null); }} onAddToCart={handleAddToCart} />}
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onEdit={(cartItem) => {
-        const itemData = getMenuItemById(cartItem.itemId);
+        const itemData = menuItems.find((item) => item.id === cartItem.itemId);
         if (itemData) {
           setSelectedItem({ ...itemData, editingCartId: cartItem.cartId, currentQuantity: cartItem.quantity, currentVariant: cartItem.selectedVariant, currentAddOns: cartItem.addOns });
           setIsModalOpen(true); setIsCartOpen(false);
