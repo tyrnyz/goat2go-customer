@@ -1,10 +1,8 @@
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import { GuestSessionProvider } from "./contexts/GuestSessionContext";
 import { CartProvider } from "./contexts/CartContext";
-import { OrdersProvider } from "./contexts/OrdersContext";
 import Home from "./pages/Home";
 import Menu from "./pages/Menu";
 import Contact from "./pages/Contact";
@@ -14,6 +12,7 @@ import Checkout from "./pages/Checkout";
 import QueueConfirmation from "./pages/QueueConfirmation";
 import Receipt from "./pages/Receipt";
 import MyOrders from "./pages/MyOrders";
+
 function Router() {
   return (
     <Switch>
@@ -27,7 +26,6 @@ function Router() {
       <Route path={"/contact"} component={Contact} />
       <Route path={"/about"} component={About} />
       <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -36,15 +34,11 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
-        <GuestSessionProvider>
-          <CartProvider>
-            <OrdersProvider>
-              <Router />
-            </OrdersProvider>
-          </CartProvider>
-        </GuestSessionProvider>
-      </ThemeProvider>
+      <GuestSessionProvider>
+        <CartProvider>
+          <Router />
+        </CartProvider>
+      </GuestSessionProvider>
     </ErrorBoundary>
   );
 }

@@ -12,7 +12,10 @@ export default function CartSidebar({ isOpen, onClose, onEdit }: CartSidebarProp
   const { items, removeFromCart, updateQuantity } = useCart();
   const [, setLocation] = useLocation();
   
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = items.reduce((sum, item) => {
+    const addOnsPrice = (item.addOns || []).reduce((a, b) => a + (b.price || 0), 0);
+    return sum + (item.price + addOnsPrice) * item.quantity;
+  }, 0);
 
   const hasVariants = (item: CartItem): boolean => {
     return item.selectedVariant !== undefined;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import Header from "@/components/Header";
 import MenuItemCard from "@/components/MenuItemCard";
 import ItemDetailsModal from "@/components/ItemDetailsModal";
@@ -11,7 +11,6 @@ import {
   AddOn,
   Variant,
   categories,
-  fallbackMenuItems,
   loadMenuFromSupabase,
 } from "@/lib/menuData";
 
@@ -28,35 +27,32 @@ export default function Menu() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(fallbackMenuItems);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const { addToCart, orderType, setOrderType, updateItem } = useCart();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const loadMenu = () => {
+    setIsLoading(true);
+    setLoadError(false);
     loadMenuFromSupabase()
-      .then((items) => setMenuItems(items))
-      .catch((err) => {
-        console.error("Failed to load menu from Supabase, using fallback:", err);
-        setMenuItems(fallbackMenuItems);
-      })
+      .then((items) => { setMenuItems(items); setLoadError(false); })
+      .catch(() => { setMenuItems([]); setLoadError(true); })
       .finally(() => setIsLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadMenu(); }, []);
 
   useEffect(() => {
     if (searchQuery.length > 0) return;
-    
-    // Observer tuning: -20% top / -30% bottom captures sections even if they are short
     const observerOptions = { root: null, rootMargin: "-20% 0px -30% 0px", threshold: 0 };
-    
     const observerCallback = (entries: IntersectionObserverEntry[]) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           setSelectedCategory(entry.target.id);
-          
-          // Auto-scroll horizontal tabs
           const activeTab = document.getElementById(`tab-${entry.target.id}`);
           if (activeTab && tabContainerRef.current) {
             const container = tabContainerRef.current;
@@ -66,18 +62,16 @@ export default function Menu() {
         }
       });
     };
-    
     const observer = new IntersectionObserver(observerCallback, observerOptions);
     Object.values(sectionRefs.current).forEach((section) => { if (section) observer.observe(section); });
-    
     return () => { observer.disconnect(); };
-  }, [searchQuery]);
+  }, [searchQuery, menuItems]);
 
   const handleCategoryClick = (categoryId: string) => {
     setSelectedCategory(categoryId);
     const element = document.getElementById(categoryId);
     if (element) {
-      const offset = window.innerWidth >= 768 ? 180 : 150; 
+      const offset = window.innerWidth >= 768 ? 180 : 150;
       const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
       window.scrollTo({ top: elementPosition - offset, behavior: "smooth" });
     }
@@ -116,7 +110,7 @@ export default function Menu() {
     <div className="min-h-screen bg-background text-foreground font-sans">
       <div className="sticky top-0 z-50 bg-background shadow-sm border-b">
         <Header onCartClick={() => setIsCartOpen(true)} />
-        
+
         <div className="container px-3 sm:px-4 pt-3 pb-3">
           <div className="relative w-full max-w-4xl mx-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
@@ -157,6 +151,17 @@ export default function Menu() {
               <div key={i} className="rounded-xl bg-muted animate-pulse h-48" />
             ))}
           </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+            <p className="text-muted-foreground text-lg mb-4 font-sans">Could not load menu. Please check your connection.</p>
+            <button
+              onClick={loadMenu}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold font-sans hover:opacity-90"
+            >
+              <RefreshCw size={16} />
+              Try Again
+            </button>
+          </div>
         ) : searchQuery.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {searchItems(searchQuery).map((item) => (
@@ -180,8 +185,6 @@ export default function Menu() {
           })
         )}
       </main>
-
-      
 
       {selectedItem && <ItemDetailsModal item={selectedItem} isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setSelectedItem(null); }} onAddToCart={handleAddToCart} />}
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onEdit={(cartItem) => {

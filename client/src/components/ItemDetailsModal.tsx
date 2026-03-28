@@ -43,8 +43,8 @@ export default function ItemDetailsModal({
     );
   };
 
-  const totalPrice =
-    item.price * quantity + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+  const addOnsTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = (item.price + addOnsTotal) * quantity;
 
   // In ItemDetailsModal, when adding to cart:
   // In ItemDetailsModal.tsx, find the handleAddToCart function and update it:
@@ -82,6 +82,7 @@ export default function ItemDetailsModal({
             src={item.image}
             alt={item.name}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            onError={(e) => { e.currentTarget.src = '/other_images/tatuns_logo.png'; }}
           />
         </div>
 

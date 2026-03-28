@@ -24,6 +24,7 @@ export default function MenuItemCard({
           src={item.image}
           alt={item.name}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          onError={(e) => { e.currentTarget.src = '/other_images/tatuns_logo.png'; }}
         />
         {item.isBestSeller && (
           <div className="absolute top-2 right-2 bg-secondary text-secondary-foreground px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold font-sans shadow-sm">

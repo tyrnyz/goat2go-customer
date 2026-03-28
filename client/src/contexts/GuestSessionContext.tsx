@@ -19,11 +19,10 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
       const savedId = localStorage.getItem("goat2go_session_id");
 
       if (savedId) {
-        const { data } = await supabase
-          .from("guest_sessions")
-          .select("id")
-          .eq("id", savedId)
-          .single();
+        // Verify session via RPC (anon cannot SELECT guest_sessions directly)
+        const { data } = await supabase.rpc('verify_guest_session', {
+          p_session_id: savedId,
+        });
 
         if (data) {
           setSessionId(savedId);

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
-import { fetchOrderById, fetchOrderItems, subscribeToOrder } from "@/lib/orderService";
+import { useGuestSession } from "@/contexts/GuestSessionContext";
+import { fetchOrderById, fetchOrderItems } from "@/lib/orderService";
 import type { DbOrder, DbOrderItem } from "@/types/database";
 import {
   CheckCircle,
@@ -9,33 +10,64 @@ import {
   Utensils,
   Clock,
   Package,
+  AlertCircle,
 } from "lucide-react";
 import Header from "@/components/Header";
+
+const POLL_INTERVAL = 5000; // 5 seconds
 
 export default function QueueConfirmation() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/queue-confirmation/:orderId");
+  const { sessionId } = useGuestSession();
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
+  const [error, setError] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const orderId = params?.orderId ? parseInt(params.orderId) : null;
-    if (!orderId) return;
+    if (!orderId || !sessionId) return;
 
-    fetchOrderById(orderId).then((data) => {
-      if (data) setOrder(data);
-    });
+    // Initial fetch
+    const loadOrder = async () => {
+      const data = await fetchOrderById(orderId, sessionId);
+      if (data) {
+        setOrder(data);
+        setError(false);
+      } else {
+        setError(true);
+      }
+    };
 
-    fetchOrderItems(orderId).then(setOrderItems);
+    loadOrder();
+    fetchOrderItems(orderId, sessionId).then(setOrderItems);
 
-    const channel = subscribeToOrder(orderId, (updated) => {
-      setOrder(updated);
-    });
+    // Poll for status updates
+    pollRef.current = setInterval(async () => {
+      const updated = await fetchOrderById(orderId, sessionId);
+      if (updated) setOrder(updated);
+    }, POLL_INTERVAL);
 
     return () => {
-      channel.unsubscribe();
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [params?.orderId]);
+  }, [params?.orderId, sessionId]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Header />
+        <div className="flex flex-col items-center justify-center h-[60vh] px-4">
+          <AlertCircle className="w-12 h-12 text-primary mb-4" />
+          <p className="text-muted-foreground text-lg mb-4 font-sans">Order not found</p>
+          <Button onClick={() => setLocation("/")} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold font-sans">
+            Go Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -52,7 +84,6 @@ export default function QueueConfirmation() {
     <div className="min-h-screen bg-background text-foreground font-sans pb-20">
       <Header />
 
-      {/* Sub Header / Success Banner */}
       <div className="bg-primary text-primary-foreground px-4 py-8 text-center shadow-md">
         <div className="container">
           <div className="flex justify-center mb-4">
@@ -66,8 +97,6 @@ export default function QueueConfirmation() {
       </div>
 
       <div className="container max-w-2xl mx-auto px-4 py-8 space-y-8 relative z-10">
-        
-        {/* Queue Number - MAIN FOCUS */}
         <div className="bg-card border border-border/50 rounded-2xl p-8 md:p-12 text-center shadow-md">
           <p className="text-muted-foreground text-sm font-bold mb-4 uppercase tracking-widest font-sans">
             Your Queue Number
@@ -86,9 +115,7 @@ export default function QueueConfirmation() {
           </p>
         </div>
 
-        {/* Quick Info Cards Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Order Type */}
           <div className="bg-card rounded-xl p-4 border border-border/50 shadow-sm flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               {order.orderType === "Dine-In" ? (
@@ -98,12 +125,9 @@ export default function QueueConfirmation() {
               )}
             </div>
             <p className="text-xs text-muted-foreground font-bold mb-1 font-sans">Order Type</p>
-            <p className="text-lg font-bold text-foreground font-sans">
-              {order.orderType}
-            </p>
+            <p className="text-lg font-bold text-foreground font-sans">{order.orderType}</p>
           </div>
 
-          {/* Time */}
           <div className="bg-card rounded-xl p-4 border border-border/50 shadow-sm flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Clock className="w-5 h-5 text-primary" />
@@ -117,7 +141,6 @@ export default function QueueConfirmation() {
             </p>
           </div>
 
-          {/* Items Count */}
           <div className="bg-card rounded-xl p-4 border border-border/50 shadow-sm flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Package className="w-5 h-5 text-primary" />
@@ -128,7 +151,6 @@ export default function QueueConfirmation() {
             </p>
           </div>
 
-          {/* Total Cost */}
           <div className="bg-card rounded-xl p-4 border border-primary/20 shadow-sm flex flex-col items-center justify-center text-center bg-primary/5">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <span className="font-bold text-primary font-sans text-lg">₱</span>
@@ -140,26 +162,22 @@ export default function QueueConfirmation() {
           </div>
         </div>
 
-        {/* Next Steps */}
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <p className="text-sm font-bold text-foreground mb-2 font-sans">
-            What's Next?
-          </p>
+          <p className="text-sm font-bold text-foreground mb-2 font-sans">What's Next?</p>
           <p className="text-sm text-muted-foreground font-sans leading-relaxed">
-            We're starting on your order right now. Just listen for your number 
-            to be called, then head over to the counter and we'll take care of 
+            We're starting on your order right now. Just listen for your number
+            to be called, then head over to the counter and we'll take care of
             the rest.
           </p>
         </div>
 
-        {/* Action Buttons */}
         <div className="space-y-3 pt-4">
           <Button
-          onClick={() => setLocation("/my-orders")}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 rounded-lg text-lg shadow-md flex items-center justify-center gap-2 font-sans"
-        >
-          Track Order Progress
-        </Button>
+            onClick={() => setLocation("/my-orders")}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 rounded-lg text-lg shadow-md flex items-center justify-center gap-2 font-sans"
+          >
+            Track Order Progress
+          </Button>
 
           <Button
             onClick={() => setLocation(`/receipt/${order.orderID}`)}
@@ -169,12 +187,12 @@ export default function QueueConfirmation() {
           </Button>
 
           <Button
-          onClick={() => setLocation("/menu")}
-          variant="outline"
-          className="w-full py-6 text-primary border-primary hover:bg-primary/10 font-bold text-lg rounded-lg font-sans flex items-center justify-center gap-2"
-        >
-          Continue Shopping
-        </Button>
+            onClick={() => setLocation("/menu")}
+            variant="outline"
+            className="w-full py-6 text-primary border-primary hover:bg-primary/10 font-bold text-lg rounded-lg font-sans flex items-center justify-center gap-2"
+          >
+            Continue Shopping
+          </Button>
         </div>
       </div>
     </div>

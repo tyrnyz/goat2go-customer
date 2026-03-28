@@ -20,7 +20,7 @@ export interface PlaceOrderResult {
 }
 
 export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderResult> {
-  // 1. Look up current product_sid for each productID
+  // Look up current product_sid for each productID
   const productIds = params.items.map(i => i.productId)
   const { data: currentProducts } = await supabase
     .from('products')
@@ -32,7 +32,7 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
     currentProducts?.map(p => [p.productID, p.product_sid]) ?? []
   )
 
-  // 2. Create order via RPC (bypasses INSERT+RETURNING RLS issue)
+  // Create order via rate-limited RPC
   const { data: rpcResult, error: orderError } = await supabase
     .rpc('place_customer_order', {
       p_session_id: params.sessionId,
@@ -44,7 +44,7 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
 
   const order = rpcResult as PlaceOrderResult
 
-  // 3. Insert order items with product_sid
+  // Insert order items with product_sid
   const orderItems = params.items.map(item => ({
     orderID: order.orderID,
     productID: item.productId,
@@ -67,50 +67,34 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
   }
 }
 
-export async function fetchOrderById(orderId: number): Promise<DbOrder | null> {
+export async function fetchOrderById(orderId: number, sessionId: string): Promise<DbOrder | null> {
   const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('orderID', orderId)
-    .single()
+    .rpc('fetch_customer_order_by_id', {
+      p_order_id: orderId,
+      p_session_id: sessionId,
+    })
 
-  if (error) return null
-  return data
+  if (error || !data) return null
+  return data as DbOrder
 }
 
-export async function fetchOrderItems(orderId: number): Promise<DbOrderItem[]> {
+export async function fetchOrderItems(orderId: number, sessionId: string): Promise<DbOrderItem[]> {
   const { data, error } = await supabase
-    .from('order_items')
-    .select('*')
-    .eq('orderID', orderId)
+    .rpc('fetch_customer_order_items', {
+      p_order_id: orderId,
+      p_session_id: sessionId,
+    })
 
   if (error) return []
-  return data ?? []
+  return (data ?? []) as DbOrderItem[]
 }
 
 export async function fetchOrdersBySession(sessionId: string): Promise<DbOrder[]> {
   const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('sessionID', sessionId)
-    .order('orderTimestamp', { ascending: false })
+    .rpc('fetch_customer_orders', {
+      p_session_id: sessionId,
+    })
 
   if (error) return []
-  return data ?? []
-}
-
-export function subscribeToOrder(orderId: number, callback: (order: DbOrder) => void) {
-  return supabase
-    .channel(`order-${orderId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `orderID=eq.${orderId}`,
-      },
-      (payload) => callback(payload.new as DbOrder)
-    )
-    .subscribe()
+  return (data ?? []) as DbOrder[]
 }

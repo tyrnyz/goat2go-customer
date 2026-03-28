@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { fetchOrderById, fetchOrderItems } from "@/lib/orderService";
 import { supabase } from "@/lib/supabase";
+import { useGuestSession } from "@/contexts/GuestSessionContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { DbOrder, DbOrderItem } from "@/types/database";
@@ -11,16 +12,17 @@ import Header from "@/components/Header";
 export default function Receipt() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/receipt/:orderId");
+  const { sessionId } = useGuestSession();
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
   const [productNames, setProductNames] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    if (!match || !params?.orderId) return;
+    if (!match || !params?.orderId || !sessionId) return;
     const orderId = parseInt(params.orderId);
 
-    fetchOrderById(orderId).then((data) => { if (data) setOrder(data); });
-    fetchOrderItems(orderId).then(async (items) => {
+    fetchOrderById(orderId, sessionId).then((data) => { if (data) setOrder(data); });
+    fetchOrderItems(orderId, sessionId).then(async (items) => {
       setOrderItems(items);
       if (items.length > 0) {
         const productIds = items.map(i => i.productID);
@@ -36,7 +38,7 @@ export default function Receipt() {
         }
       }
     });
-  }, [match, params?.orderId]);
+  }, [match, params?.orderId, sessionId]);
 
   const subtotal = useMemo(() =>
     orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0),

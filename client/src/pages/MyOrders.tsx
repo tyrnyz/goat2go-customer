@@ -41,9 +41,17 @@ export default function MyOrders() {
   const [orders, setOrders] = useState<DbOrder[]>([]);
 
   useEffect(() => {
-    if (sessionId) {
+    if (!sessionId) return;
+
+    // Initial fetch
+    fetchOrdersBySession(sessionId).then(setOrders);
+
+    // Poll every 5 seconds for status updates
+    const interval = setInterval(() => {
       fetchOrdersBySession(sessionId).then(setOrders);
-    }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [sessionId]);
 
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "completed">("all");
