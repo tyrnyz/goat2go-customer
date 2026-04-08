@@ -54,7 +54,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addToCart = (item: Omit<CartItem, 'cartId'>) => {
     const newItem: CartItem = {
       ...item,
-      cartId: `${item.itemId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      cartId: `${item.itemId}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     };
     setItems(prev => {
       const existingIndex = prev.findIndex(i => 
