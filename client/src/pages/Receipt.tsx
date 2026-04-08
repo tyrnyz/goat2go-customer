@@ -45,8 +45,8 @@ export default function Receipt() {
           const productIds = items.map(i => i.productID);
           const { data } = await supabase
             .from('products')
-            .select('"productID", "productName"')
-            .in('"productID"', productIds)
+            .select('productID, productName')
+            .in('productID', productIds)
             .eq('is_current', true);
           if (data) {
             const map: Record<number, string> = {};
