@@ -56,6 +56,7 @@ export default function QueueConfirmation() {
   const { sessionId } = useGuestSession();
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
+  const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
   const [error, setError] = useState(false);
   const [pollError, setPollError] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -85,7 +86,12 @@ export default function QueueConfirmation() {
     };
 
     loadOrder();
-    fetchOrderItems(orderId, sessionId).then(setOrderItems).catch(() => {});
+    fetchOrderItems(orderId, sessionId)
+      .then((items) => {
+        setOrderItems(items);
+        setItemsFetchFailed(false);
+      })
+      .catch(() => setItemsFetchFailed(true));
 
     // Poll for status updates; stop when Completed
     pollRef.current = setInterval(async () => {
@@ -216,7 +222,7 @@ export default function QueueConfirmation() {
             </div>
             <p className="text-xs text-muted-foreground font-bold mb-1 font-sans">Items</p>
             <p className="text-lg font-bold text-foreground font-sans">
-              {orderItems.length} item{orderItems.length !== 1 ? "s" : ""}
+              {itemsFetchFailed ? 'Could not load' : `${orderItems.length} item${orderItems.length !== 1 ? "s" : ""}`}
             </p>
           </div>
 
@@ -226,7 +232,9 @@ export default function QueueConfirmation() {
             </div>
             <p className="text-xs text-primary font-bold mb-1 font-sans">Total Cost</p>
             <p className="text-lg font-bold text-primary font-sans">
-              ₱{orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0).toFixed(2)}
+              {itemsFetchFailed
+                ? '—'
+                : `₱${orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0).toFixed(2)}`}
             </p>
           </div>
         </div>
