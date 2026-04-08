@@ -6,7 +6,7 @@ import { useGuestSession } from "@/contexts/GuestSessionContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { DbOrder, DbOrderItem } from "@/types/database";
-import { CheckCircle, Clock, Home, AlertCircle } from "lucide-react";
+import { CheckCircle, Clock, Home, AlertCircle, ChefHat } from "lucide-react";
 import Header from "@/components/Header";
 
 export default function Receipt() {
@@ -16,28 +16,50 @@ export default function Receipt() {
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
   const [productNames, setProductNames] = useState<Record<number, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchFailed, setFetchFailed] = useState(false);
+  const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
 
   useEffect(() => {
     if (!match || !params?.orderId || !sessionId) return;
-    const orderId = parseInt(params.orderId);
+    const orderId = parseInt(params.orderId, 10);
 
-    fetchOrderById(orderId, sessionId).then((data) => { if (data) setOrder(data); });
-    fetchOrderItems(orderId, sessionId).then(async (items) => {
-      setOrderItems(items);
-      if (items.length > 0) {
-        const productIds = items.map(i => i.productID);
-        const { data } = await supabase
-          .from('products')
-          .select('"productID", "productName"')
-          .in('"productID"', productIds)
-          .eq('is_current', true);
+    const load = async () => {
+      try {
+        const data = await fetchOrderById(orderId, sessionId);
         if (data) {
-          const map: Record<number, string> = {};
-          data.forEach((p: { productID: number; productName: string }) => { map[p.productID] = p.productName; });
-          setProductNames(map);
+          setOrder(data);
+        } else {
+          setFetchFailed(false); // truly not found — distinct from network failure
         }
+      } catch {
+        setFetchFailed(true);
+      } finally {
+        setIsLoading(false);
       }
-    });
+
+      try {
+        const items = await fetchOrderItems(orderId, sessionId);
+        setOrderItems(items);
+        if (items.length > 0) {
+          const productIds = items.map(i => i.productID);
+          const { data } = await supabase
+            .from('products')
+            .select('"productID", "productName"')
+            .in('"productID"', productIds)
+            .eq('is_current', true);
+          if (data) {
+            const map: Record<number, string> = {};
+            data.forEach((p: { productID: number; productName: string }) => { map[p.productID] = p.productName; });
+            setProductNames(map);
+          }
+        }
+      } catch {
+        setItemsFetchFailed(true);
+      }
+    };
+
+    load();
   }, [match, params?.orderId, sessionId]);
 
   const subtotal = useMemo(() =>
@@ -48,6 +70,35 @@ export default function Receipt() {
   const discountRate = order?.discountType === 'PWD' || order?.discountType === 'Senior' ? 0.2 : 0;
   const discountAmount = subtotal * discountRate;
   const total = subtotal - discountAmount;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center px-4 pb-20">
+          <p className="text-muted-foreground font-sans">Loading receipt...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchFailed) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center px-4 pb-20">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-primary mx-auto mb-4" />
+            <p className="text-foreground font-bold mb-2 font-sans">Could not load your receipt</p>
+            <p className="text-muted-foreground mb-4 font-sans text-sm">Please try again.</p>
+            <Button onClick={() => window.location.reload()} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold font-sans">
+              Reload
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -72,6 +123,12 @@ export default function Receipt() {
       color: "text-muted-foreground",
       bgColor: "bg-muted/30",
       label: "Pending",
+    },
+    Preparing: {
+      icon: ChefHat,
+      color: "text-orange-500",
+      bgColor: "bg-orange-50",
+      label: "Being Prepared",
     },
     Completed: {
       icon: CheckCircle,
@@ -140,7 +197,9 @@ export default function Receipt() {
             <div className="flex justify-between pb-2">
               <span className="text-muted-foreground">Placed at:</span>
               <span className="font-bold">
-                {new Date(order.orderTimestamp).toLocaleTimeString()}
+                {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
+                {' · '}
+                {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           </div>
@@ -149,6 +208,9 @@ export default function Receipt() {
         {/* Items */}
         <Card className="p-4 bg-card shadow-sm border-none">
           <h2 className="text-lg font-bold text-primary font-sans mb-4">Order Items</h2>
+          {itemsFetchFailed ? (
+            <p className="text-sm text-muted-foreground font-sans">Could not load order items. Please reload.</p>
+          ) : (
           <div className="space-y-3 font-sans">
             {orderItems.map((item) => (
               <div key={item.orderItemID} className="flex justify-between pb-3 border-b border-border/50 last:border-0">
@@ -172,6 +234,7 @@ export default function Receipt() {
               </div>
             ))}
           </div>
+          )}
         </Card>
 
         {/* Pricing Summary */}

@@ -16,54 +16,32 @@ interface PlaceOrderParams {
 export interface PlaceOrderResult {
   orderID: number
   queueNumber: string
-  orderTimestamp: string
 }
 
 export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderResult> {
-  // Look up current product_sid for each productID
-  const productIds = params.items.map(i => i.productId)
-  const { data: currentProducts } = await supabase
-    .from('products')
-    .select('"productID", product_sid')
-    .eq('is_current', true)
-    .in('"productID"', productIds)
-
-  const sidMap = new Map<number, number>(
-    currentProducts?.map(p => [p.productID, p.product_sid]) ?? []
-  )
-
-  // Create order via rate-limited RPC
-  const { data: rpcResult, error: orderError } = await supabase
+  const { data: rpcResult, error } = await supabase
     .rpc('place_customer_order', {
       p_session_id: params.sessionId,
       p_order_type: params.orderType,
       p_discount_type: params.discountType,
+      p_items: params.items,
     })
 
-  if (orderError || !rpcResult) throw orderError || new Error('Failed to create order')
+  if (error) throw error
 
-  const order = rpcResult as PlaceOrderResult
-
-  // Insert order items with product_sid
-  const orderItems = params.items.map(item => ({
-    orderID: order.orderID,
-    productID: item.productId,
-    product_sid: sidMap.get(item.productId) ?? null,
-    quantity: item.quantity,
-    price: item.price,
-    selectedAddons: item.selectedAddons,
-  }))
-
-  const { error: itemsError } = await supabase
-    .from('order_items')
-    .insert(orderItems)
-
-  if (itemsError) throw itemsError
+  if (!rpcResult.success) {
+    if (rpcResult.error === 'rate_limit_exceeded') {
+      throw new Error('You have placed too many orders. Please wait a few minutes before trying again.')
+    }
+    if (rpcResult.error === 'unavailable_products') {
+      throw new Error(`The following items are no longer available: ${(rpcResult.products as string[]).join(', ')}`)
+    }
+    throw new Error('Failed to place order')
+  }
 
   return {
-    orderID: order.orderID,
-    queueNumber: order.queueNumber,
-    orderTimestamp: order.orderTimestamp,
+    orderID: rpcResult.orderID,
+    queueNumber: rpcResult.queueNumber,
   }
 }
 
@@ -85,7 +63,7 @@ export async function fetchOrderItems(orderId: number, sessionId: string): Promi
       p_session_id: sessionId,
     })
 
-  if (error) return []
+  if (error) throw error
   return (data ?? []) as DbOrderItem[]
 }
 
@@ -95,6 +73,6 @@ export async function fetchOrdersBySession(sessionId: string): Promise<DbOrder[]
       p_session_id: sessionId,
     })
 
-  if (error) return []
+  if (error) throw error
   return (data ?? []) as DbOrder[]
 }

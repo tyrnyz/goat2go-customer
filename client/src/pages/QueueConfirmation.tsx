@@ -11,8 +11,42 @@ import {
   Clock,
   Package,
   AlertCircle,
+  ChefHat,
 } from "lucide-react";
 import Header from "@/components/Header";
+
+function getStatusColor(status: DbOrder["status"]) {
+  switch (status) {
+    case "Completed":
+      return "bg-green-50 border-green-200 text-green-700";
+    case "Preparing":
+      return "bg-orange-50 border-orange-200 text-orange-700";
+    default:
+      return "bg-gray-50 border-gray-200 text-gray-700";
+  }
+}
+
+function getStatusIcon(status: DbOrder["status"]) {
+  switch (status) {
+    case "Completed":
+      return <CheckCircle className="w-4 h-4" />;
+    case "Preparing":
+      return <ChefHat className="w-4 h-4" />;
+    default:
+      return <Clock className="w-4 h-4" />;
+  }
+}
+
+function getStatusLabel(status: DbOrder["status"]) {
+  switch (status) {
+    case "Completed":
+      return "Ready for Pickup";
+    case "Preparing":
+      return "Being Prepared";
+    default:
+      return "Pending";
+  }
+}
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
@@ -23,11 +57,21 @@ export default function QueueConfirmation() {
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
   const [error, setError] = useState(false);
+  const [pollError, setPollError] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const orderId = params?.orderId ? parseInt(params.orderId) : null;
-    if (!orderId || !sessionId) return;
+    const rawOrderId = params?.orderId;
+
+    if (!rawOrderId || !sessionId) return;
+
+    const orderId = parseInt(rawOrderId, 10);
+
+    // Guard: non-numeric orderId → show error immediately
+    if (isNaN(orderId)) {
+      setError(true);
+      return;
+    }
 
     // Initial fetch
     const loadOrder = async () => {
@@ -41,12 +85,20 @@ export default function QueueConfirmation() {
     };
 
     loadOrder();
-    fetchOrderItems(orderId, sessionId).then(setOrderItems);
+    fetchOrderItems(orderId, sessionId).then(setOrderItems).catch(() => {});
 
-    // Poll for status updates
+    // Poll for status updates; stop when Completed
     pollRef.current = setInterval(async () => {
       const updated = await fetchOrderById(orderId, sessionId);
-      if (updated) setOrder(updated);
+      if (updated) {
+        setOrder(updated);
+        setPollError(false);
+        if (updated.status === 'Completed' && pollRef.current) {
+          clearInterval(pollRef.current);
+        }
+      } else {
+        setPollError(true);
+      }
     }, POLL_INTERVAL);
 
     return () => {
@@ -107,12 +159,29 @@ export default function QueueConfirmation() {
             </p>
           </div>
           <div className="h-1 w-3/4 mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent rounded-full mb-6" />
-          <p className="text-foreground font-bold text-lg font-sans">
-            Please save or remember this number
-          </p>
-          <p className="text-muted-foreground text-sm mt-2 font-sans">
-            Show this to staff when your order is called
-          </p>
+
+          {/* Order Status Indicator */}
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border font-sans text-sm font-bold mb-4 ${getStatusColor(order.status)}`}>
+            {getStatusIcon(order.status)}
+            <span>{getStatusLabel(order.status)}</span>
+          </div>
+
+          {pollError && (
+            <p className="text-xs text-muted-foreground font-sans mt-2 animate-pulse">
+              Having trouble refreshing — retrying...
+            </p>
+          )}
+
+          {order.status !== 'Completed' && (
+            <>
+              <p className="text-foreground font-bold text-lg font-sans">
+                Please save or remember this number
+              </p>
+              <p className="text-muted-foreground text-sm mt-2 font-sans">
+                Show this to staff when your order is called
+              </p>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -162,12 +231,15 @@ export default function QueueConfirmation() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <p className="text-sm font-bold text-foreground mb-2 font-sans">What's Next?</p>
-          <p className="text-sm text-muted-foreground font-sans leading-relaxed">
-            We're starting on your order right now. Just listen for your number
-            to be called, then head over to the counter and we'll take care of
-            the rest.
+        <div className={`border rounded-xl p-6 shadow-sm ${order.status === 'Completed' ? 'bg-green-50 border-green-200' : 'bg-card border-border'}`}>
+          <p className={`text-sm font-bold mb-2 font-sans ${order.status === 'Completed' ? 'text-green-700' : 'text-foreground'}`}>
+            {order.status === 'Completed' ? 'Your order is ready!' : "What's Next?"}
+          </p>
+          <p className={`text-sm font-sans leading-relaxed ${order.status === 'Completed' ? 'text-green-600' : 'text-muted-foreground'}`}>
+            {order.status === 'Completed'
+              ? 'Head to the counter to collect your order. Thank you for dining with us!'
+              : "We're starting on your order right now. Just listen for your number to be called, then head over to the counter and we'll take care of the rest."
+            }
           </p>
         </div>
 

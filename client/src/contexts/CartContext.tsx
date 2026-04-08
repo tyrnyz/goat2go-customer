@@ -6,8 +6,7 @@ export interface CartItem {
   itemName: string;
   quantity: number;
   price: number;
-  addOns?: Array<{ id: string; name: string; price: number }>;
-  selectedVariant?: { id: string; name: string };
+  selectedAddons?: Array<{ id: string; name: string; price: number }>;
 }
 
 interface CartContextType {
@@ -30,7 +29,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Dynamic subtotal calculation
   const subtotal = items.reduce((sum, item) => {
-    const addOnsPrice = (item.addOns || []).reduce((a, b) => a + (b.price || 0), 0);
+    const addOnsPrice = (item.selectedAddons || []).reduce((a, b) => a + (b.price || 0), 0);
     return sum + (item.price + addOnsPrice) * item.quantity;
   }, 0);
 
@@ -59,9 +58,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
     setItems(prev => {
       const existingIndex = prev.findIndex(i => 
-        i.itemId === item.itemId && 
-        JSON.stringify(i.selectedVariant) === JSON.stringify(item.selectedVariant) &&
-        JSON.stringify(i.addOns) === JSON.stringify(item.addOns)
+        i.itemId === item.itemId &&
+        JSON.stringify(i.selectedAddons) === JSON.stringify(item.selectedAddons)
       );
       if (existingIndex >= 0) {
         const updated = [...prev];

@@ -83,7 +83,7 @@ All changes are **additive**. Nothing existing was altered, renamed, or removed.
 | `queueNumber` | TEXT | NULL | Auto-generated daily (Q-001, Q-002...). NULL for staff-created orders. |
 | `discountType` | VARCHAR | 'None' | Customer-selected discount: 'None', 'PWD', or 'Senior'. |
 
-Column defaults also added: `status` defaults to 'Pending', `paymentstatus` defaults to 'Unpaid', `orderTimestamp` defaults to `now()`.
+Column defaults also added: `status` defaults to 'Pending', `paymentstatus` defaults to 'Unpaid', `orderTimestamp` defaults to `now()`. The `orderTimestamp` is displayed to customers as full date and time (e.g. "April 13, 2026 · 2:35 PM" on the receipt, "Apr 13, 2026 · 2:35 PM" on the order tracking page).
 
 ### New Columns on `order_items`
 
@@ -119,6 +119,7 @@ Five server-side functions were created for the customer app's use. These run as
 | `fetch_customer_order_by_id(order_id, session_id)` | Returns a single order only if it belongs to the session. |
 | `fetch_customer_order_items(order_id, session_id)` | Returns order items only if the parent order belongs to the session. |
 | `verify_guest_session(session_id)` | Checks if a session exists. |
+| `get_best_sellers(p_limit)` | Returns top N products by total quantity sold. Falls back to `is_best_seller` flag when fewer than 10 orders exist. Excludes add-on products (type = 'Others'). |
 
 These functions are used exclusively by the customer app. Your POS does not need to call them.
 
@@ -237,9 +238,11 @@ Please verify the following on your POS:
 The `description` and `is_best_seller` columns on `products` are now live. If your admin dashboard supports editing these fields:
 
 - **`description`**: Text shown under each product on the customer app. Pre-populated for all existing products.
-- **`is_best_seller`**: Boolean flag. Products marked `true` appear in the "Customer Favorites" section on the homepage. Currently 9 products are flagged.
+- **`is_best_seller`**: Boolean flag used as a **fallback only**. The customer app now automatically calculates best sellers from real order data (via the `get_best_sellers` RPC). The flag is only used when fewer than 10 real orders have been placed on or after **April 13, 2026** — after that threshold is reached, the top 3 most-ordered products are shown automatically regardless of this flag. Orders before April 13 (test/placeholder data) are intentionally excluded from the calculation. You do not need to manage this manually once real orders start coming in.
 
-These can be managed from your admin dashboard going forward. Any changes reflect on the customer app instantly.
+  **Note on the home page display:** The home page always shows exactly 3 best sellers. While 10 products are currently flagged, the 3 that appear are simply the flagged products with the lowest `productID` numbers — there is no additional ranking among them. The full list of flagged products is visible on the Menu page under the "Best Sellers" category. Once automatic ranking activates (10+ real orders), the 3 shown will be the top 3 by quantity sold.
+
+The `description` column can be managed from your admin dashboard and reflects on the customer app instantly.
 
 ### 5. Add-on Management (Optional)
 
@@ -252,7 +255,7 @@ The `addons` table currently has 4 items. If the restaurant wants to add or modi
 - **Do NOT delete or rename** the `sessionID`, `queueNumber`, or `discountType` columns on `orders`. The customer app depends on them.
 - **Do NOT delete or rename** the `selectedAddons` column on `order_items`.
 - **Do NOT delete** the `guest_sessions` or `addons` tables.
-- **Do NOT modify** the RPC functions (`place_customer_order`, `fetch_customer_orders`, etc.) without coordinating with the customer module developer.
+- **Do NOT modify** the RPC functions (`place_customer_order`, `fetch_customer_orders`, `get_best_sellers`, etc.) without coordinating with the customer module developer.
 - **Do NOT modify** the `trg_set_queue_number` trigger. It only affects customer orders and is invisible to staff orders.
 - **Do NOT drop** the `anon` role policies listed above. They enable the customer app to function.
 
@@ -271,6 +274,36 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 **Build Output:** Static files in `dist/` (hosted on Cloudflare Pages)
 
 **Customer Module Developer:** Tyrone Yazon (tyrnyz)
+
+---
+
+## Changelog
+
+### April 8, 2026 (Full Integrity Pass — All Paths)
+- **DB migration:** Added rate limit check (5 orders/session/10 minutes) to the 4-param `place_customer_order` RPC. Previously the 3-param version enforced this limit but the 4-param version did not.
+- **orderService.ts:** `fetchOrdersBySession` and `fetchOrderItems` now throw on RPC error instead of returning empty arrays, making downstream failures distinguishable from genuinely empty results.
+- **orderService.ts:** `placeOrder` now handles `rate_limit_exceeded` response and surfaces a user-friendly message.
+- **GuestSessionContext:** Session insert failure now sets `hasError = true` and exposes it from context.
+- **App.tsx:** Added `SessionGate` — if session creation fails, a full-screen "Unable to start your session" message with a Reload button is shown instead of silently continuing.
+- **QueueConfirmation:** Added order status indicator (Pending / Being Prepared / Ready for Pickup) below the queue number, updating live with each poll. Added poll error notice ("Having trouble refreshing — retrying...") on transient poll failures. "What's Next?" section changes to "Your order is ready! Head to the counter to collect it." when status is Completed. Fixed infinite spinner on non-numeric orderId in URL.
+- **MyOrders:** Polling now uses try/catch; shows inline "Having trouble refreshing — retrying..." notice on error without clearing the existing order list.
+- **Receipt:** Distinguished between network failure and truly missing orders. Added loading state, fetch error state ("Could not load your receipt — Reload"), and items fetch error state (inline notice in items section).
+
+### April 8, 2026 (Order Placement Fix)
+- **orderService.ts:** Switched `placeOrder()` from 3-param RPC + separate `order_items` INSERT to the 4-param atomic `place_customer_order` RPC. Order and items are now created in a single DB transaction — no possibility of an order existing without items. Also adds server-side product availability pre-check before the order is written; returns specific unavailable product names to the customer if any item is sold out.
+
+### April 8, 2026 (Integrity Pass)
+- **QueueConfirmation:** Polling now stops automatically when the tracked order reaches `'Completed'`, preventing unnecessary DB calls after the order is fulfilled.
+- **MyOrders:** Polling kept as always-on (reverted stop-on-Completed logic — would have broken status updates for subsequent orders placed in the same session).
+- **GuestSessionContext:** Session insert failure now logs an explicit `console.error` instead of silently continuing with an empty session ID.
+- **ItemDetailsModal:** Removed three leftover copy-paste instruction comments that were mistakenly left in source code.
+- **Audit findings (no action needed):** `paymentstatus` column name confirmed correct against live DB schema. Checkout empty-items guard already had correct `return` guard in place.
+
+### April 8, 2026
+- **CartSidebar:** Per-item price now includes add-on costs. Add-on names shown under each item name for clarity.
+- **Checkout:** Order summary now lists add-on names under each item so customers can verify their order before placing it.
+- **DbOrder type:** Added `'Preparing'` to the `status` union type (`'Pending' | 'Preparing' | 'Completed'`) to match actual DB values.
+- **Cleanup:** Removed dead variant editing scaffolding (`currentVariant`, `currentQuantity`, `currentSelectedAddons`, `onEdit`, `isEditing`/`editingCartId` flow). No functional change — variants were never used on any menu item.
 
 ---
 

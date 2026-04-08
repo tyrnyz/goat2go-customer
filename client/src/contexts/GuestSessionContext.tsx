@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 interface GuestSessionContextType {
   sessionId: string;
   isLoading: boolean;
+  hasError: boolean;
 }
 
 const GuestSessionContext = createContext<GuestSessionContextType | undefined>(
@@ -13,6 +14,7 @@ const GuestSessionContext = createContext<GuestSessionContextType | undefined>(
 export function GuestSessionProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [hasError, setHasError] = useState<boolean>(false);
 
   useEffect(() => {
     const init = async () => {
@@ -38,7 +40,10 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
         .from("guest_sessions")
         .insert({ id: newId });
 
-      if (!error) {
+      if (error) {
+        console.error("Failed to create guest session:", error.message);
+        setHasError(true);
+      } else {
         localStorage.setItem("goat2go_session_id", newId);
         setSessionId(newId);
       }
@@ -50,7 +55,7 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <GuestSessionContext.Provider value={{ sessionId, isLoading }}>
+    <GuestSessionContext.Provider value={{ sessionId, isLoading, hasError }}>
       {children}
     </GuestSessionContext.Provider>
   );

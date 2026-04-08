@@ -1,25 +1,20 @@
-import { X, Minus, Plus, Trash2, ShoppingBag, Pencil } from "lucide-react";
+import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { useLocation } from "wouter";
 
 interface CartSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (item: CartItem) => void;
 }
 
-export default function CartSidebar({ isOpen, onClose, onEdit }: CartSidebarProps) {
+export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { items, removeFromCart, updateQuantity } = useCart();
   const [, setLocation] = useLocation();
   
   const subtotal = items.reduce((sum, item) => {
-    const addOnsPrice = (item.addOns || []).reduce((a, b) => a + (b.price || 0), 0);
+    const addOnsPrice = (item.selectedAddons || []).reduce((a, b) => a + (b.price || 0), 0);
     return sum + (item.price + addOnsPrice) * item.quantity;
   }, 0);
-
-  const hasVariants = (item: CartItem): boolean => {
-    return item.selectedVariant !== undefined;
-  };
 
   return (
     <>
@@ -45,20 +40,10 @@ export default function CartSidebar({ isOpen, onClose, onEdit }: CartSidebarProp
                 <div key={item.cartId} className="flex gap-4 border-b pb-4 items-center">
                   <div className="flex-1 font-sans">
                     <h3 className="font-bold text-base font-sans">{item.itemName}</h3>
-                    {item.selectedVariant && (
-                      <p className="text-xs" style={{ color: "#6a1b1a" }}>{item.selectedVariant.name}</p>
+                    {(item.selectedAddons || []).length > 0 && (
+                      <p className="text-xs text-muted-foreground">{item.selectedAddons!.map(a => a.name).join(', ')}</p>
                     )}
-                    <p className="text-sm text-muted-foreground">₱{(item.price * item.quantity).toFixed(2)}</p>
-                    
-                    {hasVariants(item) && (
-                      <button 
-                        onClick={() => onEdit(item)}
-                        className="mt-1 text-xs flex items-center gap-1 font-bold hover:underline"
-                        style={{ color: "#6a1b1a" }}
-                      >
-                        <Pencil size={12} /> Edit selection
-                      </button>
-                    )}
+                    <p className="text-sm text-muted-foreground">₱{((item.price + (item.selectedAddons || []).reduce((sum, a) => sum + a.price, 0)) * item.quantity).toFixed(2)}</p>
                   </div>
                   
                   {/* Controls */}

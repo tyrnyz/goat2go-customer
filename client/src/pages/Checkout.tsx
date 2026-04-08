@@ -27,7 +27,7 @@ export default function Checkout() {
 
   const subtotal = useMemo(() => {
     return items.reduce((sum, item) => {
-      const addOnsPrice = (item.addOns || []).reduce((acc, addOn) => acc + (addOn.price || 0), 0);
+      const addOnsPrice = (item.selectedAddons || []).reduce((acc, addOn) => acc + (addOn.price || 0), 0);
       return sum + (item.price + addOnsPrice) * item.quantity;
     }, 0);
   }, [items]);
@@ -78,7 +78,7 @@ export default function Checkout() {
           productId: parseInt(item.itemId),
           quantity: item.quantity,
           price: item.price,
-          selectedAddons: (item.addOns ?? []).map((a) => ({ id: a.id, name: a.name, price: a.price })),
+          selectedAddons: item.selectedAddons,
         }))
         .filter((item) => !isNaN(item.productId));
 
@@ -162,12 +162,16 @@ export default function Checkout() {
           <div className="space-y-4 mb-4">
             {items.map((item) => (
               <div key={item.cartId} className="flex justify-between items-start">
+                <div>
+                  <span className="text-base font-semibold text-foreground">
+                    {item.quantity}x {item.itemName}
+                  </span>
+                  {(item.selectedAddons || []).length > 0 && (
+                    <p className="text-sm text-muted-foreground font-normal">{item.selectedAddons!.map(a => a.name).join(', ')}</p>
+                  )}
+                </div>
                 <span className="text-base font-semibold text-foreground">
-                  {item.quantity}x {item.itemName} 
-                  {item.selectedVariant && <span className="text-sm text-muted-foreground ml-1">({item.selectedVariant.name})</span>}
-                </span>
-                <span className="text-base font-semibold text-foreground">
-                  ₱{((item.price + (item.addOns || []).reduce((sum, a) => sum + a.price, 0)) * item.quantity).toFixed(2)}
+                  ₱{((item.price + (item.selectedAddons || []).reduce((sum, a) => sum + a.price, 0)) * item.quantity).toFixed(2)}
                 </span>
               </div>
             ))}

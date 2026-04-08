@@ -1,4 +1,4 @@
-import { fetchProducts, fetchAddons } from './menuService'
+import { fetchProducts, fetchAddons, fetchBestSellers } from './menuService'
 import type { DbProduct, DbAddon } from '@/types/database'
 
 export interface AddOn {
@@ -15,14 +15,7 @@ export interface MenuItem {
   description: string;
   image: string;
   addOns?: AddOn[];
-  variants?: Variant[];
   isBestSeller?: boolean;
-}
-
-export interface Variant {
-  id: string;
-  name: string;
-  price?: number;
 }
 
 export interface MenuCategory {
@@ -57,7 +50,7 @@ function mapDbTypeToCategory(type: DbProduct['type']): string {
   }
 }
 
-export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[]): MenuItem {
+export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[], bestSellerIds?: Set<number>): MenuItem {
   const category = DESSERT_NAMES.has(product.productName)
     ? 'dessert'
     : mapDbTypeToCategory(product.type);
@@ -79,11 +72,22 @@ export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[]): M
     addOns: hasAddOns
       ? addons.map(a => ({ id: a.id, name: a.name, price: a.price }))
       : undefined,
-    isBestSeller: product.is_best_seller ?? false,
+    isBestSeller: bestSellerIds
+      ? bestSellerIds.has(product.productID)
+      : (product.is_best_seller ?? false),
   };
 }
 
 export async function loadMenuFromSupabase(): Promise<MenuItem[]> {
-  const [products, addons] = await Promise.all([fetchProducts(), fetchAddons()]);
-  return products.map(p => mapDbProductToMenuItem(p, addons));
+  const [products, addons, bestSellers] = await Promise.all([
+    fetchProducts(),
+    fetchAddons(),
+    fetchBestSellers(3).catch(() => null),
+  ]);
+
+  const bestSellerIds = bestSellers
+    ? new Set(bestSellers.map(p => p.productID))
+    : undefined;
+
+  return products.map(p => mapDbProductToMenuItem(p, addons, bestSellerIds));
 }

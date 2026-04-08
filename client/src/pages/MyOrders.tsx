@@ -4,7 +4,7 @@ import { useGuestSession } from "@/contexts/GuestSessionContext";
 import { fetchOrdersBySession } from "@/lib/orderService";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, List } from "lucide-react";
+import { CheckCircle, Clock, ChefHat, List } from "lucide-react";
 import type { DbOrder } from "@/types/database";
 import Header from "@/components/Header";
 
@@ -12,6 +12,8 @@ function getStatusColor(status: DbOrder["status"]) {
   switch (status) {
     case "Completed":
       return "bg-gray-50 border-gray-200 text-gray-700";
+    case "Preparing":
+      return "bg-orange-50 border-orange-200 text-orange-700";
     default:
       return "bg-gray-50 border-gray-200 text-gray-700";
   }
@@ -21,6 +23,8 @@ function getStatusIcon(status: DbOrder["status"]) {
   switch (status) {
     case "Completed":
       return <CheckCircle className="w-4 h-4" />;
+    case "Preparing":
+      return <ChefHat className="w-4 h-4" />;
     default:
       return <Clock className="w-4 h-4" />;
   }
@@ -30,6 +34,8 @@ function getStatusLabel(status: DbOrder["status"]) {
   switch (status) {
     case "Completed":
       return "Completed";
+    case "Preparing":
+      return "Being Prepared";
     default:
       return "Pending";
   }
@@ -39,17 +45,26 @@ export default function MyOrders() {
   const [, setLocation] = useLocation();
   const { sessionId } = useGuestSession();
   const [orders, setOrders] = useState<DbOrder[]>([]);
+  const [pollError, setPollError] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
 
+    const poll = async () => {
+      try {
+        const data = await fetchOrdersBySession(sessionId);
+        setOrders(data);
+        setPollError(false);
+      } catch {
+        setPollError(true);
+      }
+    };
+
     // Initial fetch
-    fetchOrdersBySession(sessionId).then(setOrders);
+    poll();
 
     // Poll every 5 seconds for status updates
-    const interval = setInterval(() => {
-      fetchOrdersBySession(sessionId).then(setOrders);
-    }, 5000);
+    const interval = setInterval(poll, 5000);
 
     return () => clearInterval(interval);
   }, [sessionId]);
@@ -93,7 +108,7 @@ export default function MyOrders() {
         <div className="mb-3 space-y-1.5">
           <div className="flex gap-4 text-xs font-sans text-gray-600">
             <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Type:</strong> {order.orderType}</span>
-            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Time:</strong> {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Date:</strong> {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           
           <div className="text-xs font-sans text-gray-600 line-clamp-2 leading-relaxed">
@@ -141,6 +156,13 @@ export default function MyOrders() {
             <option value="completed">Completed Orders</option>
           </select>
         </div>
+
+        {/* Poll error notice */}
+        {pollError && (
+          <p className="text-xs text-muted-foreground font-sans mb-3 animate-pulse">
+            Having trouble refreshing — retrying...
+          </p>
+        )}
 
         {/* Displaying the filtered list */}
         {displayedOrders.length > 0 ? (

@@ -9,7 +9,6 @@ import { useCart } from "@/contexts/CartContext";
 import {
   MenuItem,
   AddOn,
-  Variant,
   categories,
   loadMenuFromSupabase,
 } from "@/lib/menuData";
@@ -18,12 +17,7 @@ export default function Menu() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState("best-sellers");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState<MenuItem & {
-    editingCartId?: string;
-    currentQuantity?: number;
-    currentVariant?: { id: string; name: string };
-    currentAddOns?: AddOn[];
-  } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -31,7 +25,7 @@ export default function Menu() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  const { addToCart, orderType, setOrderType, updateItem } = useCart();
+  const { addToCart, orderType, setOrderType } = useCart();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
@@ -77,16 +71,14 @@ export default function Menu() {
     }
   };
 
-  const handleAddToCart = (item: MenuItem, quantity: number, addOns: AddOn[], variant?: Variant, isEditing?: boolean, editingCartId?: string) => {
-    const cartItem = {
+  const handleAddToCart = (item: MenuItem, quantity: number, selectedAddons: AddOn[]) => {
+    addToCart({
       itemId: item.id,
       itemName: item.name,
       quantity,
       price: item.price,
-      addOns,
-      selectedVariant: variant ? { id: variant.id, name: variant.name } : undefined,
-    };
-    isEditing && editingCartId ? updateItem(editingCartId, cartItem) : addToCart(cartItem);
+      selectedAddons,
+    });
     setIsModalOpen(false);
   };
 
@@ -187,13 +179,7 @@ export default function Menu() {
       </main>
 
       {selectedItem && <ItemDetailsModal item={selectedItem} isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setSelectedItem(null); }} onAddToCart={handleAddToCart} />}
-      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onEdit={(cartItem) => {
-        const itemData = menuItems.find((item) => item.id === cartItem.itemId);
-        if (itemData) {
-          setSelectedItem({ ...itemData, editingCartId: cartItem.cartId, currentQuantity: cartItem.quantity, currentVariant: cartItem.selectedVariant, currentAddOns: cartItem.addOns });
-          setIsModalOpen(true); setIsCartOpen(false);
-        }
-      }} />
+      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       {!orderType && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">

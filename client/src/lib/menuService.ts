@@ -22,3 +22,10 @@ export async function fetchAddons(): Promise<DbAddon[]> {
   if (error) throw error
   return data ?? []
 }
+
+export async function fetchBestSellers(limit: number = 3): Promise<DbProduct[]> {
+  const { data, error } = await supabase
+    .rpc('get_best_sellers', { p_limit: limit })
+  if (error) throw error
+  return (data ?? []) as DbProduct[]
+}
