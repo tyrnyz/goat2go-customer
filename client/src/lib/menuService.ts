@@ -7,7 +7,7 @@ export async function fetchProducts(): Promise<DbProduct[]> {
     .select('*')
     .eq('status', 'AVAILABLE')
     .eq('is_current', true)
-    .order('"productID"')
+    .order('productID', { ascending: true })
 
   if (error) throw error
   return data ?? []
