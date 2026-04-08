@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,10 +36,13 @@ export default function Checkout() {
   const discountAmount = subtotal * discountPercentage;
   const total = subtotal - discountAmount;
 
-  if (!orderType) {
-    setLocation("/order-type");
-    return null;
-  }
+  useEffect(() => {
+    if (!orderType) {
+      setLocation("/order-type");
+    }
+  }, [orderType, setLocation]);
+
+  if (!orderType) return null;
 
   if (items.length === 0) {
     return (
@@ -75,10 +78,10 @@ export default function Checkout() {
       // Items with non-numeric IDs (Kampukan, Canned Soda, Mountain Dew) are skipped
       const validItems = items
         .map((item) => ({
-          productId: parseInt(item.itemId),
+          productId: parseInt(item.itemId, 10),
           quantity: item.quantity,
           price: item.price,
-          selectedAddons: item.selectedAddons,
+          selectedAddons: item.selectedAddons ?? [],
         }))
         .filter((item) => !isNaN(item.productId));
 
