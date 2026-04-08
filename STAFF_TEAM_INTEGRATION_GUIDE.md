@@ -110,7 +110,7 @@ Realtime is enabled on the `orders` table. This allows your POS to use Supabase 
 
 ### RPC Functions
 
-Five server-side functions were created for the customer app's use. These run as `SECURITY DEFINER` (elevated privileges) so they can bypass RLS:
+Six server-side functions were created for the customer app's use. These run as `SECURITY DEFINER` (elevated privileges) so they can bypass RLS:
 
 | Function | Purpose |
 |---|---|
