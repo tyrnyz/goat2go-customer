@@ -111,10 +111,6 @@ export default function MyOrders() {
             <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Date:</strong> {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           
-          <div className="text-xs font-sans text-gray-600 line-clamp-2 leading-relaxed">
-            <span className="font-bold text-gray-700">Queue: </span>
-            {order.queueNumber ?? "Pending"}
-          </div>
         </div>
 
         {/* Bottom Row: Slim Action Button */}
