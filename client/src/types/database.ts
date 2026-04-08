@@ -23,7 +23,7 @@ export interface DbAddon {
 export interface DbOrder {
   orderID: number
   userID: number | null
-  sessionID: string
+  sessionID: string | null
   orderType: 'Dine-In' | 'Take-Out'
   status: 'Pending' | 'Preparing' | 'Completed'
   orderTimestamp: string

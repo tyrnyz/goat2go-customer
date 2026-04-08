@@ -3,9 +3,7 @@ import { X, Plus, Minus } from "lucide-react";
 import { useState } from "react";
 
 interface ItemDetailsModalProps {
-  item: MenuItem & { 
-    editingCartId?: string;
-  };
+  item: MenuItem;
   isOpen: boolean;
   onClose: () => void;
   onAddToCart: (item: MenuItem, quantity: number, addOns: AddOn[]) => void;

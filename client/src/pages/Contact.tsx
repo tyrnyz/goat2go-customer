@@ -130,9 +130,6 @@ export default function Contact() {
             </div>
             
             <div className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-start gap-3">
-              </div>
-              
               <button
                 onClick={() =>
                   window.open(

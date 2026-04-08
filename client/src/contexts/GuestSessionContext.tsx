@@ -31,6 +31,7 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
           return;
         }
+        localStorage.removeItem("goat2go_session_id");
       }
 
       // Generate UUID client-side and insert

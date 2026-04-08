@@ -8,13 +8,8 @@ interface CartSidebarProps {
 }
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
-  const { items, removeFromCart, updateQuantity } = useCart();
+  const { items, subtotal, removeFromCart, updateQuantity } = useCart();
   const [, setLocation] = useLocation();
-  
-  const subtotal = items.reduce((sum, item) => {
-    const addOnsPrice = (item.selectedAddons || []).reduce((a, b) => a + (b.price || 0), 0);
-    return sum + (item.price + addOnsPrice) * item.quantity;
-  }, 0);
 
   return (
     <>
