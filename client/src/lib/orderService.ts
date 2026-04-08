@@ -29,11 +29,11 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
 
   if (error) throw error
 
-  if (!rpcResult.success) {
-    if (rpcResult.error === 'rate_limit_exceeded') {
+  if (!rpcResult || !rpcResult.success) {
+    if (rpcResult?.error === 'rate_limit_exceeded') {
       throw new Error('You have placed too many orders. Please wait a few minutes before trying again.')
     }
-    if (rpcResult.error === 'unavailable_products') {
+    if (rpcResult?.error === 'unavailable_products') {
       throw new Error(`The following items are no longer available: ${(rpcResult.products as string[]).join(', ')}`)
     }
     throw new Error('Failed to place order')
@@ -52,7 +52,8 @@ export async function fetchOrderById(orderId: number, sessionId: string): Promis
       p_session_id: sessionId,
     })
 
-  if (error || !data) return null
+  if (error) throw error
+  if (!data) return null
   return data as DbOrder
 }
 
