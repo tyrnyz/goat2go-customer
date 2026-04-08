@@ -57,6 +57,14 @@ END IF;
 - Entirely server-side — cannot be bypassed from the client
 - Raises a Postgres exception on violation; frontend surfaces this as an error to the user
 
+**Server-side price validation:**
+
+The RPC ignores the `price` field sent by the client for each item. Instead, it fetches the real price directly from the `products` table (`WHERE "productID" = ... AND is_current = true AND status = 'AVAILABLE'`) at the moment of order creation. The same applies to add-on prices — each add-on's price is looked up from the `addons` table (`WHERE id = ... AND is_available = true`) and a clean JSONB array is rebuilt server-side before being written to `order_items.selectedAddons`. A client that intercepts the network request and modifies any price field will still have the real price stored.
+
+- `order_items.price` is always the current server price at order time
+- `order_items.selectedAddons[].price` values are always server-sourced
+- The frontend payload contract is unchanged — the client still sends `price` for its own display logic; the RPC discards it
+
 **What the RPC sets on the new order:**
 - `status = 'Pending'`, `paymentstatus = 'Unpaid'` (set by DB defaults)
 - `sessionID`, `orderType`, `discountType` from parameters

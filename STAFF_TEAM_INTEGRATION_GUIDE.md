@@ -279,6 +279,9 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 
 ## Changelog
 
+### April 8, 2026 (Price Validation Hardening)
+- **DB migration:** `place_customer_order` RPC now looks up real product and add-on prices from the `products` and `addons` tables instead of trusting client-sent values. Closes a vulnerability where a malicious client could modify the price field in the RPC payload to pay less than the real price. The payload contract is unchanged (frontend still sends `price` for its own UI display; the RPC ignores it). No impact on staff-side queries or behavior.
+
 ### April 8, 2026 (Full Integrity Pass — All Paths)
 - **DB migration:** Added rate limit check (5 orders/session/10 minutes) to the 4-param `place_customer_order` RPC. Previously the 3-param version enforced this limit but the 4-param version did not.
 - **orderService.ts:** `fetchOrdersBySession` and `fetchOrderItems` now throw on RPC error instead of returning empty arrays, making downstream failures distinguishable from genuinely empty results.
