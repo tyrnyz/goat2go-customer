@@ -16,8 +16,8 @@ export default function Receipt() {
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
   const [productNames, setProductNames] = useState<Record<number, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchFailed, setFetchFailed] = useState(false);
+  type LoadState = 'loading' | 'network-error' | 'not-found' | 'loaded';
+  const [loadState, setLoadState] = useState<LoadState>('loading');
   const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
 
   useEffect(() => {
@@ -29,13 +29,12 @@ export default function Receipt() {
         const data = await fetchOrderById(orderId, sessionId);
         if (data) {
           setOrder(data);
+          setLoadState('loaded');
         } else {
-          setFetchFailed(false); // truly not found — distinct from network failure
+          setLoadState('not-found');
         }
       } catch {
-        setFetchFailed(true);
-      } finally {
-        setIsLoading(false);
+        setLoadState('network-error');
       }
 
       try {
@@ -71,7 +70,7 @@ export default function Receipt() {
   const discountAmount = subtotal * discountRate;
   const total = subtotal - discountAmount;
 
-  if (isLoading) {
+  if (loadState === 'loading') {
     return (
       <div className="min-h-screen bg-background flex flex-col font-sans">
         <Header />
@@ -82,7 +81,7 @@ export default function Receipt() {
     );
   }
 
-  if (fetchFailed) {
+  if (loadState === 'network-error') {
     return (
       <div className="min-h-screen bg-background flex flex-col font-sans">
         <Header />
@@ -100,7 +99,7 @@ export default function Receipt() {
     );
   }
 
-  if (!order) {
+  if (loadState === 'not-found' || !order) {
     return (
       <div className="min-h-screen bg-background flex flex-col font-sans">
         <Header />
