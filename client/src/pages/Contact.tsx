@@ -1,4 +1,4 @@
-import { Phone, Mail, Clock, Facebook, MapPin } from "lucide-react";
+import { Phone, Mail, Clock, Facebook } from "lucide-react";
 import Header from "@/components/Header";
 
 /**
