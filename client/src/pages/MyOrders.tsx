@@ -104,13 +104,10 @@ export default function MyOrders() {
           </div>
         </div>
 
-        {/* Middle Row: Type, Time, and Items */}
-        <div className="mb-3 space-y-1.5">
-          <div className="flex gap-4 text-xs font-sans text-gray-600">
-            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Type:</strong> {order.orderType}</span>
-            <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Date:</strong> {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-          
+        {/* Middle Row: Type and Time */}
+        <div className="flex gap-4 text-xs font-sans text-gray-600 mb-3">
+          <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Type:</strong> {order.orderType}</span>
+          <span><strong className="text-gray-500 font-semibold uppercase text-[10px]">Date:</strong> {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
 
         {/* Bottom Row: Slim Action Button */}
