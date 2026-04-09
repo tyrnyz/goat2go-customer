@@ -302,7 +302,7 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 - **DB migration:** Added `SET search_path = 'public'` to `fetch_customer_order_by_id` and `fetch_customer_order_items` to match the hardening already applied to all other customer DEFINER functions.
 - **DB migration:** Tightened EXECUTE grants on all customer RPCs — revoked from `PUBLIC` and `authenticated`, granted to `anon` only. **Action for SE2:** Your POS uses direct table access and does not call these RPCs, so no change needed on your end. If your code ever calls a customer RPC directly, reach out first.
 - **DB migration:** Added per-day advisory lock to `generate_queue_number` to prevent the rare race condition where two simultaneous order inserts could receive the same queue number.
-- **DB migration (optional, pending SE2 coordination):** Indexes on `orders("sessionID", "orderTimestamp")`, `orders("orderTimestamp")`, and `order_items("orderID")` are ready to apply. These are purely additive and improve both teams' query performance. Will be applied after SE2 confirmation.
+- **A7 indexes: not applied.** `order_items("orderID")` is redundant — primary key already covers it. `orders("sessionID")` and `orders("orderTimestamp")` are unnecessary at current order volume. Revisit before go-live at production scale.
 - **DB migration:** Dropped `cancellation_reason` column from `orders` — was always NULL (nothing wrote to it). `cancelled_at` and `cancelled_by` are retained for audit trail.
 - **No changes to staff-side tables, policies, triggers, or workflows.**
 
