@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useGuestSession } from "@/contexts/GuestSessionContext";
-import { fetchOrderById, fetchOrderItems } from "@/lib/orderService";
+import { fetchOrderById, fetchOrderItems, cancelCustomerOrder } from "@/lib/orderService";
 import type { DbOrder, DbOrderItem } from "@/types/database";
 import {
   CheckCircle,
@@ -11,42 +11,10 @@ import {
   Clock,
   Package,
   AlertCircle,
-  ChefHat,
+  XCircle,
 } from "lucide-react";
+import { getStatusColor, getStatusIcon, getQueueStatusLabel } from "@/lib/orderStatus";
 import Header from "@/components/Header";
-
-function getStatusColor(status: DbOrder["status"]) {
-  switch (status) {
-    case "Completed":
-      return "bg-green-50 border-green-200 text-green-700";
-    case "Preparing":
-      return "bg-orange-50 border-orange-200 text-orange-700";
-    default:
-      return "bg-gray-50 border-gray-200 text-gray-700";
-  }
-}
-
-function getStatusIcon(status: DbOrder["status"]) {
-  switch (status) {
-    case "Completed":
-      return <CheckCircle className="w-4 h-4" />;
-    case "Preparing":
-      return <ChefHat className="w-4 h-4" />;
-    default:
-      return <Clock className="w-4 h-4" />;
-  }
-}
-
-function getStatusLabel(status: DbOrder["status"]) {
-  switch (status) {
-    case "Completed":
-      return "Ready for Pickup";
-    case "Preparing":
-      return "Being Prepared";
-    default:
-      return "Pending";
-  }
-}
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
@@ -59,6 +27,9 @@ export default function QueueConfirmation() {
   const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
   const [error, setError] = useState(false);
   const [pollError, setPollError] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -99,7 +70,7 @@ export default function QueueConfirmation() {
       if (updated) {
         setOrder(updated);
         setPollError(false);
-        if (updated.status === 'Completed' && pollRef.current) {
+        if ((updated.status === 'Completed' || updated.status === 'Cancelled') && pollRef.current) {
           clearInterval(pollRef.current);
         }
       } else {
@@ -111,6 +82,22 @@ export default function QueueConfirmation() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [params?.orderId, sessionId]);
+
+  const handleCancel = async () => {
+    if (!sessionId || !order) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelCustomerOrder(order.orderID, sessionId);
+      const updated = await fetchOrderById(order.orderID, sessionId);
+      if (updated) setOrder(updated);
+      setShowCancelModal(false);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (error) {
     return (
@@ -138,21 +125,37 @@ export default function QueueConfirmation() {
     );
   }
 
+  const StatusBadgeIcon = getStatusIcon(order.status);
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-20">
       <Header />
 
-      <div className="bg-primary text-primary-foreground px-4 py-8 text-center shadow-md">
-        <div className="container">
-          <div className="flex justify-center mb-4">
-            <CheckCircle className="w-16 h-16 text-secondary" />
+      {order.status === 'Cancelled' ? (
+        <div className="bg-gray-100 border-b border-gray-200 px-4 py-8 text-center shadow-sm">
+          <div className="container">
+            <div className="flex justify-center mb-4">
+              <XCircle className="w-16 h-16 text-gray-400" />
+            </div>
+            <h1 className="text-3xl font-bold font-sans mb-2 text-gray-600">Order Cancelled</h1>
+            <p className="text-gray-500 text-lg font-sans">
+              This order was not processed
+            </p>
           </div>
-          <h1 className="text-3xl font-bold font-sans mb-2 text-secondary">Order Confirmed!</h1>
-          <p className="text-primary-foreground/80 text-lg font-sans">
-            Your order has been placed successfully
-          </p>
         </div>
-      </div>
+      ) : (
+        <div className="bg-primary text-primary-foreground px-4 py-8 text-center shadow-md">
+          <div className="container">
+            <div className="flex justify-center mb-4">
+              <CheckCircle className="w-16 h-16 text-secondary" />
+            </div>
+            <h1 className="text-3xl font-bold font-sans mb-2 text-secondary">Order Confirmed!</h1>
+            <p className="text-primary-foreground/80 text-lg font-sans">
+              Your order has been placed successfully
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="container max-w-2xl mx-auto px-4 py-8 space-y-8 relative z-10">
         <div className="bg-card border border-border/50 rounded-2xl p-8 md:p-12 text-center shadow-md">
@@ -160,7 +163,7 @@ export default function QueueConfirmation() {
             Your Queue Number
           </p>
           <div className="mb-4">
-            <p className="text-7xl md:text-8xl font-black text-primary tracking-widest font-sans">
+            <p className={`text-7xl md:text-8xl font-black tracking-widest font-sans ${order.status === 'Cancelled' ? 'text-gray-400 opacity-50 line-through' : 'text-primary'}`}>
               {order.queueNumber}
             </p>
           </div>
@@ -168,8 +171,8 @@ export default function QueueConfirmation() {
 
           {/* Order Status Indicator */}
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border font-sans text-sm font-bold mb-4 ${getStatusColor(order.status)}`}>
-            {getStatusIcon(order.status)}
-            <span>{getStatusLabel(order.status)}</span>
+            <StatusBadgeIcon className="w-4 h-4" />
+            <span>{getQueueStatusLabel(order.status)}</span>
           </div>
 
           {pollError && (
@@ -178,7 +181,7 @@ export default function QueueConfirmation() {
             </p>
           )}
 
-          {order.status !== 'Completed' && (
+          {(order.status === 'Pending' || order.status === 'Preparing') && (
             <>
               <p className="text-foreground font-bold text-lg font-sans">
                 Please save or remember this number
@@ -239,17 +242,28 @@ export default function QueueConfirmation() {
           </div>
         </div>
 
-        <div className={`border rounded-xl p-6 shadow-sm ${order.status === 'Completed' ? 'bg-green-50 border-green-200' : 'bg-card border-border'}`}>
-          <p className={`text-sm font-bold mb-2 font-sans ${order.status === 'Completed' ? 'text-green-700' : 'text-foreground'}`}>
-            {order.status === 'Completed' ? 'Your order is ready!' : "What's Next?"}
-          </p>
-          <p className={`text-sm font-sans leading-relaxed ${order.status === 'Completed' ? 'text-green-600' : 'text-muted-foreground'}`}>
-            {order.status === 'Completed'
-              ? 'Head to the counter to collect your order. Thank you for dining with us!'
-              : "We're starting on your order right now. Just listen for your number to be called, then head over to the counter and we'll take care of the rest."
-            }
-          </p>
-        </div>
+        {order.status === 'Completed' ? (
+          <div className="border rounded-xl p-6 shadow-sm bg-green-50 border-green-200">
+            <p className="text-sm font-bold mb-2 font-sans text-green-700">Your order is ready!</p>
+            <p className="text-sm font-sans leading-relaxed text-green-600">
+              Head to the counter to collect your order. Thank you for dining with us!
+            </p>
+          </div>
+        ) : order.status === 'Cancelled' ? (
+          <div className="border rounded-xl p-6 shadow-sm bg-gray-50 border-gray-200">
+            <p className="text-sm font-bold mb-2 font-sans text-gray-600">Order Cancelled</p>
+            <p className="text-sm font-sans leading-relaxed text-gray-500">
+              This order was cancelled. No payment is due.
+            </p>
+          </div>
+        ) : (
+          <div className="border rounded-xl p-6 shadow-sm bg-card border-border">
+            <p className="text-sm font-bold mb-2 font-sans text-foreground">What's Next?</p>
+            <p className="text-sm font-sans leading-relaxed text-muted-foreground">
+              We're starting on your order right now. Just listen for your number to be called, then head over to the counter and we'll take care of the rest.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3 pt-4">
           <Button
@@ -273,8 +287,52 @@ export default function QueueConfirmation() {
           >
             Continue Shopping
           </Button>
+
+          {order.status === 'Pending' && (
+            <>
+              <hr className="border-border/50" />
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelModal(true)}
+                className="w-full py-6 text-gray-500 border-gray-300 hover:bg-gray-50 font-bold text-base rounded-lg font-sans"
+              >
+                Cancel This Order
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold font-sans mb-2">Cancel this order?</h3>
+            <p className="text-muted-foreground text-sm font-sans mb-4">
+              This can't be undone. The order will be marked as cancelled.
+            </p>
+            {cancelError && (
+              <p className="text-red-600 text-sm font-sans mb-3">{cancelError}</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowCancelModal(false); setCancelError(null); }}
+                disabled={isCancelling}
+              >
+                Keep Order
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleCancel}
+                disabled={isCancelling}
+              >
+                {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

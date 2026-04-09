@@ -25,12 +25,15 @@ export interface DbOrder {
   userID: number | null
   sessionID: string | null
   orderType: 'Dine-In' | 'Take-Out'
-  status: 'Pending' | 'Preparing' | 'Completed'
+  status: 'Pending' | 'Preparing' | 'Completed' | 'Cancelled'
   orderTimestamp: string
   completeTimestamp: string | null
   paymentstatus: 'Paid' | 'Unpaid'
   queueNumber: string | null
   discountType: 'None' | 'PWD' | 'Senior'
+  cancelled_at: string | null
+  cancelled_by: 'customer' | 'staff' | 'system' | null
+  cancellation_reason: string | null
 }
 
 export interface DbOrderItem {

@@ -42,8 +42,10 @@ Your POS queries `SELECT * FROM orders` and customer orders appear alongside sta
 - `sessionID IS NOT NULL` (staff orders have NULL sessionID)
 - `queueNumber IS NOT NULL` (staff orders have NULL queueNumber)
 
+Note: a customer may cancel a Pending order before staff acts on it. Always check `status` before preparing or processing payment — skip any order where `status = 'Cancelled'`.
+
 **Step 3 — Staff processes the order:**
-Your POS updates the order as normal:
+Your POS updates the order as normal (only for non-Cancelled orders):
 - `UPDATE orders SET status = 'Completed' WHERE "orderID" = ...`
 - `UPDATE orders SET paymentstatus = 'Paid' WHERE "orderID" = ...`
 - Optionally set `userID` to the cashier who processed it
@@ -82,6 +84,9 @@ All changes are **additive**. Nothing existing was altered, renamed, or removed.
 | `sessionID` | UUID | NULL | Links order to a guest session. NULL for staff-created orders. |
 | `queueNumber` | TEXT | NULL | Auto-generated daily (Q-001, Q-002...). NULL for staff-created orders. |
 | `discountType` | VARCHAR | 'None' | Customer-selected discount: 'None', 'PWD', or 'Senior'. |
+| `cancelled_at` | TIMESTAMPTZ | NULL | Set when cancelled. NULL for non-cancelled orders. |
+| `cancelled_by` | TEXT | NULL | Who cancelled: `'customer'` (self-cancel via app), `'staff'` (manual SQL), or `'system'` (reserved for future automated voids — not currently used). NULL for non-cancelled orders. |
+| `cancellation_reason` | TEXT | NULL | Optional free-text reason. Currently always NULL for customer self-cancels. Intended for staff or future system use. |
 
 Column defaults also added: `status` defaults to 'Pending', `paymentstatus` defaults to 'Unpaid', `orderTimestamp` defaults to `now()`. The `orderTimestamp` is displayed to customers as full date and time (e.g. "April 13, 2026 · 2:35 PM" on the receipt, "Apr 13, 2026 · 2:35 PM" on the order tracking page).
 
@@ -119,7 +124,8 @@ Six server-side functions were created for the customer app's use. These run as 
 | `fetch_customer_order_by_id(order_id, session_id)` | Returns a single order only if it belongs to the session. |
 | `fetch_customer_order_items(order_id, session_id)` | Returns order items only if the parent order belongs to the session. |
 | `verify_guest_session(session_id)` | Checks if a session exists. |
-| `get_best_sellers(p_limit)` | Returns top N products by total quantity sold. Falls back to `is_best_seller` flag when fewer than 10 orders exist. Excludes add-on products (type = 'Others'). |
+| `get_best_sellers(p_limit)` | Returns top N products by total quantity sold. Falls back to `is_best_seller` flag when fewer than 10 orders exist. Excludes add-on products (type = 'Others'). Excludes cancelled orders from the ranking query. |
+| `cancel_customer_order(p_order_id, p_session_id)` | Cancels a customer order. Only succeeds if the order belongs to the session and is still Pending. Returns `{success: true}` or `{success: false, error: 'not_found'\|'cannot_cancel'}`. `SECURITY DEFINER`, fixed `search_path`. |
 
 These functions are used exclusively by the customer app. Your POS does not need to call them.
 
@@ -146,8 +152,11 @@ The `anon` role has **no SELECT access** to orders, order_items, or guest_sessio
 Customer orders show up in the same `orders` table your POS already reads. To distinguish them:
 
 ```sql
--- Customer orders only
+-- Customer orders only (all statuses)
 SELECT * FROM orders WHERE "sessionID" IS NOT NULL ORDER BY "orderTimestamp" DESC;
+
+-- Active customer orders only (exclude cancelled — use this for prep queue / order board)
+SELECT * FROM orders WHERE "sessionID" IS NOT NULL AND status != 'Cancelled' ORDER BY "orderTimestamp" DESC;
 
 -- Staff orders only
 SELECT * FROM orders WHERE "sessionID" IS NULL;
@@ -155,9 +164,13 @@ SELECT * FROM orders WHERE "sessionID" IS NULL;
 
 Each customer order has a `queueNumber` (e.g. "Q-001") that the customer sees on their screen. Your POS should display this queue number so staff can call it out when the order is ready.
 
+**Important:** Cancelled orders (`status = 'Cancelled'`) should not appear in the prep queue or active order board. Filter them out with `AND status != 'Cancelled'`. The `cancelled_at` and `cancelled_by` columns can be used for reporting if needed.
+
 ### Processing Customer Orders
 
-When staff processes a customer order, update the same fields you normally would:
+Before processing any customer order, verify `status != 'Cancelled'`. If the customer cancelled while the order was still in the queue, no preparation is needed and payment must not be collected.
+
+For active (non-Cancelled) orders, update the same fields you normally would:
 
 ```sql
 UPDATE orders
@@ -165,7 +178,8 @@ SET status = 'Completed',
     paymentstatus = 'Paid',
     "completeTimestamp" = now(),
     "userID" = <cashier_user_id>
-WHERE "orderID" = <order_id>;
+WHERE "orderID" = <order_id>
+  AND status != 'Cancelled';  -- guard against accidental processing of a cancelled order
 ```
 
 The customer app polls every 5 seconds and will pick up this status change automatically.
@@ -232,6 +246,7 @@ Please verify the following on your POS:
 - [ ] The `queueNumber` field is visible so staff can call it out
 - [ ] Updating `status` to 'Completed' works for customer orders
 - [ ] The `selectedAddons` JSONB column doesn't break any existing queries
+- [ ] Cancelled orders (`status = 'Cancelled'`) are excluded from the active order queue / prep board
 
 ### 4. Descriptions and Best Sellers (Optional)
 
@@ -253,9 +268,11 @@ The `addons` table currently has 4 items. If the restaurant wants to add or modi
 ## Things to NOT Do
 
 - **Do NOT delete or rename** the `sessionID`, `queueNumber`, or `discountType` columns on `orders`. The customer app depends on them.
+- **Do NOT delete or rename** the `cancelled_at`, `cancelled_by`, or `cancellation_reason` columns on `orders`. Used for cancellation audit trail.
 - **Do NOT delete or rename** the `selectedAddons` column on `order_items`.
 - **Do NOT delete** the `guest_sessions` or `addons` tables.
-- **Do NOT modify** the RPC functions (`place_customer_order`, `fetch_customer_orders`, `get_best_sellers`, etc.) without coordinating with the customer module developer.
+- **Do NOT modify** the RPC functions (`place_customer_order`, `fetch_customer_orders`, `cancel_customer_order`, `get_best_sellers`, etc.) without coordinating with the customer module developer.
+- **Do NOT modify** the `orders_cancelled_by_check` constraint. It enforces the valid `cancelled_by` values (`'customer'`, `'staff'`, `'system'`).
 - **Do NOT modify** the `trg_set_queue_number` trigger. It only affects customer orders and is invisible to staff orders.
 - **Do NOT drop** the `anon` role policies listed above. They enable the customer app to function.
 
@@ -278,6 +295,17 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 ---
 
 ## Changelog
+
+### April 8, 2026 (Customer Self-Cancellation)
+- **DB migration:** Added `cancelled_at` (TIMESTAMPTZ), `cancelled_by` (TEXT, CHECK: 'customer'|'staff'|'system'), and `cancellation_reason` (TEXT) columns to `orders`. All nullable, no default.
+- **DB migration:** `get_best_sellers` RPC now excludes orders with `status = 'Cancelled'` from the ranking query. The 10-order threshold check (which determines whether to use real order data or fall back to the `is_best_seller` flag) is separate and intentionally includes all orders.
+- **DB migration:** New `cancel_customer_order(p_order_id BIGINT, p_session_id UUID)` RPC. Verifies session ownership, allows cancellation only when `status = 'Pending'`, atomically sets `status = 'Cancelled'`, `cancelled_at = now()`, `cancelled_by = 'customer'`. Returns `{success: true}` or `{success: false, error: 'not_found'|'cannot_cancel'}`. Granted to `anon` and `authenticated`. `SECURITY DEFINER` with fixed `search_path = 'public'` (same hardening as all other customer RPCs).
+- **Action required for staff POS:** Filter `status != 'Cancelled'` on active order boards. Cancelled orders should not appear in the prep queue. See updated "Displaying Customer Orders" section below.
+- **orderService.ts:** Added `cancelCustomerOrder(orderId, sessionId)` wrapping the new RPC.
+- **QueueConfirmation:** Cancel button added (Pending orders only). Confirmation modal prevents accidental taps. Poll stops on Cancelled (same as Completed). UI de-emphasises queue number when cancelled.
+- **MyOrders:** Added "Cancelled Orders" filter. Fixed a pre-existing bug where the "Pending" filter was showing all non-Completed orders (including Cancelled); now correctly shows only Pending + Preparing.
+- **Receipt:** Cancel button added for Pending orders — customers can cancel from MyOrders → View Receipt, not just from QueueConfirmation. Cancelled orders show a gray banner, strikethrough queue number, and cancellation reason if set.
+- **types/database.ts:** `DbOrder.status` updated to `'Pending' | 'Preparing' | 'Completed' | 'Cancelled'`.
 
 ### April 8, 2026 (Price Validation Hardening)
 - **DB migration:** `place_customer_order` RPC now looks up real product and add-on prices from the `products` and `addons` tables instead of trusting client-sent values. Closes a vulnerability where a malicious client could modify the price field in the RPC payload to pay less than the real price. The payload contract is unchanged (frontend still sends `price` for its own UI display; the RPC ignores it). No impact on staff-side queries or behavior.
@@ -305,7 +333,7 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 ### April 8, 2026
 - **CartSidebar:** Per-item price now includes add-on costs. Add-on names shown under each item name for clarity.
 - **Checkout:** Order summary now lists add-on names under each item so customers can verify their order before placing it.
-- **DbOrder type:** Added `'Preparing'` to the `status` union type (`'Pending' | 'Preparing' | 'Completed'`) to match actual DB values.
+- **DbOrder type:** Added `'Preparing'` to the `status` union type (`'Pending' | 'Preparing' | 'Completed'`) to match actual DB values. (Superseded by April 8 cancellation update which added `'Cancelled'` → full union: `'Pending' | 'Preparing' | 'Completed' | 'Cancelled'`.)
 - **Cleanup:** Removed dead variant editing scaffolding (`currentVariant`, `currentQuantity`, `currentSelectedAddons`, `onEdit`, `isEditing`/`editingCartId` flow). No functional change — variants were never used on any menu item.
 
 ---

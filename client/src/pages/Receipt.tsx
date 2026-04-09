@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
-import { fetchOrderById, fetchOrderItems } from "@/lib/orderService";
+import { fetchOrderById, fetchOrderItems, cancelCustomerOrder } from "@/lib/orderService";
 import { supabase } from "@/lib/supabase";
 import { useGuestSession } from "@/contexts/GuestSessionContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { DbOrder, DbOrderItem } from "@/types/database";
-import { CheckCircle, Clock, Home, AlertCircle, ChefHat } from "lucide-react";
+import { CheckCircle, Home, AlertCircle, XCircle } from "lucide-react";
+import { getReceiptStatusConfig } from "@/lib/orderStatus";
 import Header from "@/components/Header";
 
 export default function Receipt() {
@@ -19,6 +20,9 @@ export default function Receipt() {
   type LoadState = 'loading' | 'network-error' | 'not-found' | 'loaded';
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!match || !params?.orderId || !sessionId) return;
@@ -65,6 +69,22 @@ export default function Receipt() {
     orderItems.reduce((sum, i) => sum + (i.price + i.selectedAddons.reduce((s, a) => s + a.price, 0)) * i.quantity, 0),
     [orderItems]
   );
+
+  const handleCancel = async () => {
+    if (!sessionId || !order) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelCustomerOrder(order.orderID, sessionId);
+      const updated = await fetchOrderById(order.orderID, sessionId);
+      if (updated) setOrder(updated);
+      setShowCancelModal(false);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const discountRate = order?.discountType === 'PWD' || order?.discountType === 'Senior' ? 0.2 : 0;
   const discountAmount = subtotal * discountRate;
@@ -116,28 +136,7 @@ export default function Receipt() {
     );
   }
 
-  const statusConfig: Record<string, { icon: typeof Clock; color: string; bgColor: string; label: string }> = {
-    Pending: {
-      icon: Clock,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted/30",
-      label: "Pending",
-    },
-    Preparing: {
-      icon: ChefHat,
-      color: "text-orange-500",
-      bgColor: "bg-orange-50",
-      label: "Being Prepared",
-    },
-    Completed: {
-      icon: CheckCircle,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted/30",
-      label: "Order Completed",
-    },
-  };
-
-  const config = statusConfig[order.status] ?? statusConfig["Pending"];
+  const config = getReceiptStatusConfig(order.status);
   const StatusIcon = config.icon;
 
   return (
@@ -145,26 +144,36 @@ export default function Receipt() {
       {/* Global Navbar */}
       <Header />
 
-      {/* Success Banner */}
-      <div className="bg-primary text-primary-foreground px-4 py-8 shadow-md relative overflow-hidden">
-        {/* Subtle background pulse matching checkout */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" />
-        <div className="text-center relative z-10">
-          <CheckCircle className="w-12 h-12 mx-auto mb-4 text-[#f4c27a]" />
-          <h1 className="text-3xl font-bold mb-2 font-sans text-[#f4c27a]">Order Confirmed!</h1>
-          <p className="text-primary-foreground/90 font-sans">Your order has been placed successfully</p>
+      {/* Banner */}
+      {order.status === 'Cancelled' ? (
+        <div className="bg-gray-100 border-b border-gray-200 px-4 py-8 shadow-sm">
+          <div className="text-center">
+            <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <h1 className="text-3xl font-bold mb-2 font-sans text-gray-600">Order Cancelled</h1>
+            <p className="text-gray-500 font-sans">This order was not processed</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-primary text-primary-foreground px-4 py-8 shadow-md relative overflow-hidden">
+          {/* Subtle background pulse matching checkout */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" />
+          <div className="text-center relative z-10">
+            <CheckCircle className="w-12 h-12 mx-auto mb-4 text-[#f4c27a]" />
+            <h1 className="text-3xl font-bold mb-2 font-sans text-[#f4c27a]">Order Confirmed!</h1>
+            <p className="text-primary-foreground/90 font-sans">Your order has been placed successfully</p>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6 relative z-10">
         {/* Queue Number - Main Focus */}
-        <Card className="p-8 bg-card border-2 border-primary/20 shadow-lg text-center">
+        <Card className={`p-8 bg-card shadow-lg text-center ${order.status === 'Cancelled' ? 'border-2 border-gray-200' : 'border-2 border-primary/20'}`}>
           <p className="text-muted-foreground text-sm mb-2 uppercase tracking-wider font-bold font-sans">Your Queue Number</p>
-          <p className="text-6xl font-bold text-primary tracking-widest font-sans">
+          <p className={`text-6xl font-bold tracking-widest font-sans ${order.status === 'Cancelled' ? 'text-gray-400 opacity-50 line-through' : 'text-primary'}`}>
             {order.queueNumber}
           </p>
           <p className="text-muted-foreground text-sm mt-4 font-sans">
-            Please take note of your queue number
+            {order.status === 'Cancelled' ? 'This order was cancelled' : 'Please take note of your queue number'}
           </p>
         </Card>
 
@@ -193,7 +202,7 @@ export default function Receipt() {
               <span className="text-muted-foreground">Order ID:</span>
               <span className="font-mono text-sm font-bold">{order.orderID}</span>
             </div>
-            <div className="flex justify-between pb-2">
+            <div className={`flex justify-between pb-2 ${order.cancellation_reason ? 'border-b border-border/50' : ''}`}>
               <span className="text-muted-foreground">Placed at:</span>
               <span className="font-bold">
                 {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -201,6 +210,12 @@ export default function Receipt() {
                 {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
+            {order.cancellation_reason && (
+              <div className="flex justify-between pb-2">
+                <span className="text-muted-foreground">Cancellation reason:</span>
+                <span className="font-bold text-gray-600">{order.cancellation_reason}</span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -275,8 +290,51 @@ export default function Receipt() {
           >
             Back to Home
           </Button>
+          {order.status === 'Pending' && (
+            <>
+              <hr className="border-border/50" />
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelModal(true)}
+                className="w-full py-6 text-gray-500 border-gray-300 hover:bg-gray-50 font-bold font-sans text-lg flex items-center justify-center"
+              >
+                Cancel This Order
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold font-sans mb-2">Cancel this order?</h3>
+            <p className="text-muted-foreground text-sm font-sans mb-4">
+              This can't be undone. The order will be marked as cancelled.
+            </p>
+            {cancelError && (
+              <p className="text-red-600 text-sm font-sans mb-3">{cancelError}</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowCancelModal(false); setCancelError(null); }}
+                disabled={isCancelling}
+              >
+                Keep Order
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleCancel}
+                disabled={isCancelling}
+              >
+                {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

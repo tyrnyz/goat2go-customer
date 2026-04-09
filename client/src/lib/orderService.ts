@@ -77,3 +77,32 @@ export async function fetchOrdersBySession(sessionId: string): Promise<DbOrder[]
   if (error) throw error
   return (data ?? []) as DbOrder[]
 }
+
+export interface CancelOrderResult {
+  success: boolean
+}
+
+export async function cancelCustomerOrder(
+  orderId: number,
+  sessionId: string
+): Promise<CancelOrderResult> {
+  const { data: rpcResult, error } = await supabase
+    .rpc('cancel_customer_order', {
+      p_order_id: orderId,
+      p_session_id: sessionId,
+    })
+
+  if (error) throw error
+
+  if (!rpcResult || !rpcResult.success) {
+    if (rpcResult?.error === 'cannot_cancel') {
+      throw new Error("This order can no longer be cancelled because it's already being prepared.")
+    }
+    if (rpcResult?.error === 'not_found') {
+      throw new Error("Order not found.")
+    }
+    throw new Error('Failed to cancel order')
+  }
+
+  return { success: true }
+}
