@@ -33,7 +33,6 @@ export interface DbOrder {
   discountType: 'None' | 'PWD' | 'Senior'
   cancelled_at: string | null
   cancelled_by: 'customer' | 'staff' | 'system' | null
-  cancellation_reason: string | null
 }
 
 export interface DbOrderItem {

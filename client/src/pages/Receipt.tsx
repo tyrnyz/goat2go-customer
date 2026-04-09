@@ -204,7 +204,7 @@ export default function Receipt() {
               <span className="text-muted-foreground">Order ID:</span>
               <span className="font-mono text-sm font-bold">{order.orderID}</span>
             </div>
-            <div className={`flex justify-between pb-2 ${order.cancellation_reason ? 'border-b border-border/50' : ''}`}>
+            <div className="flex justify-between pb-2">
               <span className="text-muted-foreground">Placed at:</span>
               <span className="font-bold">
                 {new Date(order.orderTimestamp).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -212,12 +212,6 @@ export default function Receipt() {
                 {new Date(order.orderTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-            {order.cancellation_reason && (
-              <div className="flex justify-between pb-2">
-                <span className="text-muted-foreground">Cancellation reason:</span>
-                <span className="font-bold text-gray-600">{order.cancellation_reason}</span>
-              </div>
-            )}
           </div>
         </Card>
 
