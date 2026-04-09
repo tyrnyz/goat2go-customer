@@ -64,17 +64,28 @@ export default function QueueConfirmation() {
       })
       .catch(() => setItemsFetchFailed(true));
 
-    // Poll for status updates; stop when Completed
+    // Poll for status updates; stop when terminal. Also retries items fetch if it failed initially.
     pollRef.current = setInterval(async () => {
       const updated = await fetchOrderById(orderId, sessionId);
       if (updated) {
         setOrder(updated);
         setPollError(false);
-        if ((updated.status === 'Completed' || updated.status === 'Cancelled') && pollRef.current) {
+        if ((updated.status === 'Completed' || updated.status === 'Cancelled' || updated.status === 'Ready') && pollRef.current) {
           clearInterval(pollRef.current);
         }
       } else {
         setPollError(true);
+      }
+
+      // Retry items fetch if previous attempt failed
+      if (itemsFetchFailed) {
+        try {
+          const items = await fetchOrderItems(orderId, sessionId);
+          setOrderItems(items);
+          setItemsFetchFailed(false);
+        } catch {
+          // Stay in failed state, will retry next poll
+        }
       }
     }, POLL_INTERVAL);
 
@@ -94,6 +105,9 @@ export default function QueueConfirmation() {
       setShowCancelModal(false);
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
+      // Refresh so the badge reflects what the server actually thinks
+      const refreshed = await fetchOrderById(order.orderID, sessionId);
+      if (refreshed) setOrder(refreshed);
     } finally {
       setIsCancelling(false);
     }
@@ -242,7 +256,14 @@ export default function QueueConfirmation() {
           </div>
         </div>
 
-        {order.status === 'Completed' ? (
+        {order.status === 'Ready' ? (
+          <div className="border rounded-xl p-6 shadow-sm bg-green-50 border-green-200">
+            <p className="text-sm font-bold mb-2 font-sans text-green-700">Your order is ready for pickup!</p>
+            <p className="text-sm font-sans leading-relaxed text-green-600">
+              Head to the counter to collect your order.
+            </p>
+          </div>
+        ) : order.status === 'Completed' ? (
           <div className="border rounded-xl p-6 shadow-sm bg-green-50 border-green-200">
             <p className="text-sm font-bold mb-2 font-sans text-green-700">Your order is ready!</p>
             <p className="text-sm font-sans leading-relaxed text-green-600">

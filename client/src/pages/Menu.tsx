@@ -187,7 +187,7 @@ export default function Menu() {
             <h2 className="text-xl font-bold mb-4 font-sans">How would you like to order?</h2>
             <div className="flex gap-2">
               <button onClick={() => setOrderType("dine-in")} className="flex-1 py-3 bg-primary text-white rounded-lg font-sans">Dine-In</button>
-              <button onClick={() => setOrderType("take-out")} className="flex-1 py-3 bg-secondary text-white rounded-lg font-sans">Take-Out</button>
+              <button onClick={() => setOrderType("take-out")} className="flex-1 py-3 bg-secondary text-secondary-foreground rounded-lg font-sans font-bold">Take-Out</button>
             </div>
           </div>
         </div>

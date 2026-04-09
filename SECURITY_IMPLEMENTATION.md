@@ -39,23 +39,26 @@ Every customer gets an anonymous session UUID that scopes all their order activi
 
 ### A2. Order Placement & Rate Limiting
 
-**RPC: `place_customer_order(p_session_id, p_order_type, p_discount_type)` — SECURITY DEFINER**
+**RPC: `place_customer_order(p_session_id, p_order_type, p_discount_type, p_items)` — SECURITY DEFINER**
 
-Server-side rate limit enforced before any order is created:
+Server-side validation enforced before any order is created, in this order:
+
+1. **Empty-payload rejection** — if `p_items` is NULL, not an array, or an empty array, returns `{success: false, error: 'empty_order'}` immediately.
+2. **Quantity bounds** — every item must have `quantity` between 1 and 99 inclusive. Rejects with `{success: false, error: 'invalid_quantity'}` before any DB write. Prevents negative-quantity money exploits.
+3. **Rate limit** — maximum 5 orders per session per 10 minutes. Returns `{success: false, error: 'rate_limit_exceeded'}`.
 
 ```sql
-SELECT COUNT(*) FROM orders
-WHERE "sessionID" = p_session_id
-AND "orderTimestamp" > (now() - interval '10 minutes');
-
-IF recent_count >= 5 THEN
-  RAISE EXCEPTION 'Rate limit exceeded. Please wait before placing another order.';
-END IF;
+-- Quantity validation (runs before rate limit and before any INSERT)
+FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+  v_qty := COALESCE((v_item->>'quantity')::INT, 0);
+  IF v_qty < 1 OR v_qty > 99 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_quantity', ...);
+  END IF;
+END LOOP;
 ```
 
-- Maximum 5 orders per session per 10 minutes
-- Entirely server-side — cannot be bypassed from the client
-- Raises a Postgres exception on violation; frontend surfaces this as an error to the user
+- All validation is entirely server-side — cannot be bypassed from the client
+- Returns structured JSON errors instead of raising Postgres exceptions (friendlier for the frontend to handle)
 
 **Server-side price validation:**
 
@@ -162,6 +165,7 @@ All functions verified from `information_schema.routines`.
 | `fetch_customer_order_by_id` | Session-scoped single order |
 | `fetch_customer_order_items` | Session-scoped order items |
 | `get_best_sellers` | Order aggregate — DEFINER required since anon has no SELECT on `order_items`. Only counts orders from April 13, 2026 onwards to exclude test/placeholder data. Falls back to `is_best_seller` flag until 10 real orders exist. |
+| `cancel_customer_order` | Session-scoped cancellation — verifies session ownership and only cancels if `status = 'Pending'`. Returns `{success: true}` or `{success: false, error: 'not_found'\|'cannot_cancel'}`. |
 | `get_my_role` | Returns authenticated user's role (staff/admin use only) |
 
 **SECURITY INVOKER** (run as the calling role, subject to RLS):

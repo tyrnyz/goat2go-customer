@@ -45,15 +45,14 @@ export default function Receipt() {
         const items = await fetchOrderItems(orderId, sessionId);
         setOrderItems(items);
         if (items.length > 0) {
-          const productIds = items.map(i => i.productID);
+          const productSids = items.map(i => i.product_sid).filter(Boolean);
           const { data } = await supabase
             .from('products')
-            .select('productID, productName')
-            .in('productID', productIds)
-            .eq('is_current', true);
+            .select('product_sid, productName')
+            .in('product_sid', productSids);
           if (data) {
             const map: Record<number, string> = {};
-            data.forEach((p: { productID: number; productName: string }) => { map[p.productID] = p.productName; });
+            data.forEach((p: { product_sid: number; productName: string }) => { map[p.product_sid] = p.productName; });
             setProductNames(map);
           }
         }
@@ -81,6 +80,9 @@ export default function Receipt() {
       setShowCancelModal(false);
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
+      // Refresh so the badge reflects what the server actually thinks
+      const refreshed = await fetchOrderById(order.orderID, sessionId);
+      if (refreshed) setOrder(refreshed);
     } finally {
       setIsCancelling(false);
     }
@@ -230,7 +232,7 @@ export default function Receipt() {
               <div key={item.orderItemID} className="flex justify-between pb-3 border-b border-border/50 last:border-0">
                 <div>
                   <p className="font-bold text-foreground">
-                    {productNames[item.productID] ?? `Product #${item.productID}`} x{item.quantity}
+                    {productNames[item.product_sid ?? -1] ?? `Product #${item.productID}`} x{item.quantity}
                   </p>
                   {item.selectedAddons.length > 0 && (
                     <p className="text-sm text-muted-foreground mt-1">

@@ -66,7 +66,7 @@ export default function ItemDetailsModal({
             <h2 className="text-2xl font-bold font-sans text-foreground mb-1">
               {item.name}
             </h2>
-            <p className="text-lg text-primary font-bold">₱{item.price}</p>
+            <p className="text-lg text-primary font-bold">₱{item.price.toFixed(2)}</p>
           </div>
 
           {/* Description */}
@@ -124,7 +124,7 @@ export default function ItemDetailsModal({
           <div className="border-t border-border pt-4 mt-2">
             <div className="flex justify-between items-center mb-4">
               <span className="text-base font-semibold font-sans">Total:</span>
-              <span className="text-xl font-bold text-primary font-sans">₱{totalPrice}</span>
+              <span className="text-xl font-bold text-primary font-sans">₱{totalPrice.toFixed(2)}</span>
             </div>
             
             {/* Buttons side-by-side using Flexbox */}

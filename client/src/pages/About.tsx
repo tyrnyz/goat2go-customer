@@ -90,107 +90,19 @@ export default function About() {
             </div>
           </div>
 
-          {/* QR Code Section */}
-          <div className="bg-gradient-to-br from-secondary/20 to-primary/20 rounded-xl p-8 border-2 border-secondary/30">
-            <h2 className="section-header mb-6">Share This Website</h2>
-            
-            <div className="mb-8">
-              <p className="text-muted-foreground mb-4 leading-relaxed">
-                Want to generate a QR code that points to this website? Follow
-                these simple steps:
-              </p>
-              <ol className="space-y-4 text-muted-foreground">
-                <li className="flex gap-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
-                    1
-                  </span>
-                  <span>
-                    Visit a QR code generator website like{" "}
-                    <a
-                      href="https://www.qr-code-generator.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary font-semibold hover:underline"
-                    >
-                      QR Code Generator
-                    </a>
-                    {" "}or{" "}
-                    <a
-                      href="https://qr.io"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary font-semibold hover:underline"
-                    >
-                      QR.io
-                    </a>
-                  </span>
-                </li>
-                <li className="flex gap-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  <span>
-                    Enter the URL:{" "}
-                    <code className="bg-card px-2 py-1 rounded font-mono text-sm">
-                      https://yourdomain.com
-                    </code>
-                  </span>
-                </li>
-                <li className="flex gap-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
-                    3
-                  </span>
-                  <span>
-                    Customize the design (colors, logo) to match your brand
-                  </span>
-                </li>
-                <li className="flex gap-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
-                    4
-                  </span>
-                  <span>
-                    Download the QR code as PNG or SVG and use it on menus,
-                    posters, and social media
-                  </span>
-                </li>
-              </ol>
-            </div>
-
-            <div className="bg-card rounded-lg p-6">
-              <h3 className="font-bold mb-3">Quick Links:</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://www.qr-code-generator.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    → QR Code Generator
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://qr.io"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    → QR.io
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.canva.com/create/qr-codes/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    → Canva QR Code Maker
-                  </a>
-                </li>
-              </ul>
-            </div>
+          {/* Visit Us */}
+          <div className="bg-gradient-to-br from-secondary/20 to-primary/20 rounded-xl p-8 border-2 border-secondary/30 text-center">
+            <h2 className="section-header mb-4">Visit Us in Tarlac City</h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              We'd love to have you dine with us. Come experience the authentic flavors of Filipino cuisine at Tatun's Kambingan, right in the heart of Tarlac City, Philippines.
+            </p>
+            <a
+              href="/contact"
+              className="inline-block px-6 py-3 rounded-lg font-bold font-sans transition-all hover:brightness-110"
+              style={{ backgroundColor: "#6a1b1a", color: "#f4c27a" }}
+            >
+              Get Directions & Contact Info
+            </a>
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
-import { useCart, CartItem } from "@/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import { useLocation } from "wouter";
 
 interface CartSidebarProps {

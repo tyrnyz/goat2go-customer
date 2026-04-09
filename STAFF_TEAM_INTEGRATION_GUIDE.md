@@ -296,6 +296,15 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 
 ## Changelog
 
+### April 9, 2026 (Validation Hardening & Security Pass)
+- **DB migration:** Dropped legacy 3-arg `place_customer_order(uuid, varchar, varchar)` — was dead code exploitable for creating orphan orders with no items.
+- **DB migration:** Added quantity validation (1–99 per item) and empty-payload rejection to 4-arg `place_customer_order`. Returns `{success: false, error: 'invalid_quantity'}` or `{success: false, error: 'empty_order'}` for malformed payloads. No impact on normal POS workflows.
+- **DB migration:** Added `SET search_path = 'public'` to `fetch_customer_order_by_id` and `fetch_customer_order_items` to match the hardening already applied to all other customer DEFINER functions.
+- **DB migration:** Tightened EXECUTE grants on all customer RPCs — revoked from `PUBLIC` and `authenticated`, granted to `anon` only. **Action for SE2:** Your POS uses direct table access and does not call these RPCs, so no change needed on your end. If your code ever calls a customer RPC directly, reach out first.
+- **DB migration:** Added per-day advisory lock to `generate_queue_number` to prevent the rare race condition where two simultaneous order inserts could receive the same queue number.
+- **DB migration (optional, pending SE2 coordination):** Indexes on `orders("sessionID", "orderTimestamp")`, `orders("orderTimestamp")`, and `order_items("orderID")` are ready to apply. These are purely additive and improve both teams' query performance. Will be applied after SE2 confirmation.
+- **No changes to staff-side tables, policies, triggers, or workflows.**
+
 ### April 8, 2026 (Customer Self-Cancellation)
 - **DB migration:** Added `cancelled_at` (TIMESTAMPTZ), `cancelled_by` (TEXT, CHECK: 'customer'|'staff'|'system'), and `cancellation_reason` (TEXT) columns to `orders`. All nullable, no default.
 - **DB migration:** `get_best_sellers` RPC now excludes orders with `status = 'Cancelled'` from the ranking query. The 10-order threshold check (which determines whether to use real order data or fall back to the `is_best_seller` flag) is separate and intentionally includes all orders.

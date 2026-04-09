@@ -42,7 +42,7 @@ export default function MyOrders() {
   const displayedOrders = statusFilter === "all"
     ? orders
     : statusFilter === "pending"
-      ? orders.filter((order) => order.status === "Pending" || order.status === "Preparing")
+      ? orders.filter((order) => order.status === "Pending" || order.status === "Preparing" || order.status === "Ready")
       : statusFilter === "cancelled"
         ? orders.filter((order) => order.status === "Cancelled")
         : orders.filter((order) => order.status === "Completed");
@@ -51,7 +51,7 @@ export default function MyOrders() {
   const OrderCard = ({ order }: { order: DbOrder }) => {
     const StatusIcon = getStatusIcon(order.status);
     return (
-    <Card className={`border-l-4 hover:shadow-md transition-shadow bg-card ${order.status === 'Completed' ? 'border-l-gray-400 opacity-80' : order.status === 'Cancelled' ? 'border-l-gray-400 opacity-70' : 'border-l-primary'}`}>
+    <Card className={`border-l-4 hover:shadow-md transition-shadow bg-card ${order.status === 'Completed' ? 'border-l-gray-400 opacity-80' : order.status === 'Cancelled' ? 'border-l-gray-400 opacity-70' : order.status === 'Ready' ? 'border-l-green-500' : 'border-l-primary'}`}>
       <div className="p-3 md:p-4">
 
         {/* Top Row: Queue, Status Badge, Total Price */}

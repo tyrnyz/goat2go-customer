@@ -25,7 +25,7 @@ export interface DbOrder {
   userID: number | null
   sessionID: string | null
   orderType: 'Dine-In' | 'Take-Out'
-  status: 'Pending' | 'Preparing' | 'Completed' | 'Cancelled'
+  status: 'Pending' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled'
   orderTimestamp: string
   completeTimestamp: string | null
   paymentstatus: 'Paid' | 'Unpaid'

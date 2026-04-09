@@ -24,6 +24,7 @@ export default function Checkout() {
   const [discountType, setDiscountType] = useState<DiscountType>("none");
   const [isPlacing, setIsPlacing] = useState(false);
   const [isEditingOrderType, setIsEditingOrderType] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   const subtotal = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -70,6 +71,7 @@ export default function Checkout() {
 
   const handlePlaceOrder = async () => {
     setIsPlacing(true);
+    setOrderError(null);
     try {
       const dbOrderType = orderType === "dine-in" ? "Dine-In" : "Take-Out";
       const dbDiscountType = discountType === "pwd" ? "PWD" : discountType === "senior" ? "Senior" : "None";
@@ -86,7 +88,7 @@ export default function Checkout() {
         .filter((item) => !isNaN(item.productId));
 
       if (validItems.length === 0) {
-        alert("No valid items to order. Please refresh the menu and try again.");
+        setOrderError("No valid items to order. Please refresh the menu and try again.");
         return;
       }
 
@@ -100,7 +102,7 @@ export default function Checkout() {
       clearCart();
       setLocation(`/queue-confirmation/${result.orderID}`);
     } catch (err) {
-      alert(`Failed to place order: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+      setOrderError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
     } finally {
       setIsPlacing(false);
     }
@@ -199,6 +201,11 @@ export default function Checkout() {
         </Card>
 
         <div className="space-y-3 pt-4">
+          {orderError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              <p className="text-red-700 text-sm font-sans font-medium">{orderError}</p>
+            </div>
+          )}
           <Button onClick={handlePlaceOrder} disabled={isPlacing} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 rounded-lg text-lg shadow-md transition-transform hover:-translate-y-1">
             {isPlacing ? "Processing..." : "Place Order"}
           </Button>

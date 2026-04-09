@@ -22,15 +22,25 @@ export function GuestSessionProvider({ children }: { children: ReactNode }) {
 
       if (savedId) {
         // Verify session via RPC (anon cannot SELECT guest_sessions directly)
-        const { data } = await supabase.rpc('verify_guest_session', {
+        const { data, error: verifyError } = await supabase.rpc('verify_guest_session', {
           p_session_id: savedId,
         });
+
+        if (verifyError) {
+          // Network/timeout error — keep the saved session rather than losing it
+          console.error("Failed to verify session:", verifyError.message);
+          setHasError(true);
+          setIsLoading(false);
+          return;
+        }
 
         if (data) {
           setSessionId(savedId);
           setIsLoading(false);
           return;
         }
+
+        // RPC succeeded but returned null — session truly expired, rotate it
         localStorage.removeItem("goat2go_session_id");
       }
 
