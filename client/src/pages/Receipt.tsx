@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { fetchOrderById, fetchOrderItems, cancelCustomerOrder } from "@/lib/orderService";
-import { supabase } from "@/lib/supabase";
 import { useGuestSession } from "@/contexts/GuestSessionContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ export default function Receipt() {
   const { sessionId } = useGuestSession();
   const [order, setOrder] = useState<DbOrder | null>(null);
   const [orderItems, setOrderItems] = useState<DbOrderItem[]>([]);
-  const [productNames, setProductNames] = useState<Record<number, string>>({});
   type LoadState = 'loading' | 'network-error' | 'not-found' | 'loaded';
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [itemsFetchFailed, setItemsFetchFailed] = useState(false);
@@ -44,18 +42,6 @@ export default function Receipt() {
       try {
         const items = await fetchOrderItems(orderId, sessionId);
         setOrderItems(items);
-        if (items.length > 0) {
-          const productSids = items.map(i => i.product_sid).filter(Boolean);
-          const { data } = await supabase
-            .from('products')
-            .select('product_sid, productName')
-            .in('product_sid', productSids);
-          if (data) {
-            const map: Record<number, string> = {};
-            data.forEach((p: { product_sid: number; productName: string }) => { map[p.product_sid] = p.productName; });
-            setProductNames(map);
-          }
-        }
       } catch {
         setItemsFetchFailed(true);
       }
@@ -226,7 +212,7 @@ export default function Receipt() {
               <div key={item.orderItemID} className="flex justify-between pb-3 border-b border-border/50 last:border-0">
                 <div>
                   <p className="font-bold text-foreground">
-                    {productNames[item.product_sid ?? -1] ?? `Product #${item.productID}`} x{item.quantity}
+                    {item.productName} x{item.quantity}
                   </p>
                   {item.selectedAddons.length > 0 && (
                     <p className="text-sm text-muted-foreground mt-1">
