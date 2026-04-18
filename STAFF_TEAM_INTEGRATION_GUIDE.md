@@ -326,7 +326,7 @@ Your existing tables (`users`, `payments`), columns, and all `authenticated` rol
 - **orderService.ts:** `placeOrder` now handles `rate_limit_exceeded` response and surfaces a user-friendly message.
 - **GuestSessionContext:** Session insert failure now sets `hasError = true` and exposes it from context.
 - **App.tsx:** Added `SessionGate` — if session creation fails, a full-screen "Unable to start your session" message with a Reload button is shown instead of silently continuing.
-- **QueueConfirmation:** Added order status indicator (Pending / Being Prepared / Ready for Pickup) below the queue number, updating live with each poll. Added poll error notice ("Having trouble refreshing — retrying...") on transient poll failures. "What's Next?" section changes to "Your order is ready! Head to the counter to collect it." when status is Completed. Fixed infinite spinner on non-numeric orderId in URL.
+- **QueueConfirmation:** Added order status indicator (Pending / Being Prepared / Completed) below the queue number, updating live with each poll. Added poll error notice ("Having trouble refreshing — retrying...") on transient poll failures. "What's Next?" section changes to "Your order is ready! Head to the counter to collect it." when status is Completed. Fixed infinite spinner on non-numeric orderId in URL.
 - **MyOrders:** Polling now uses try/catch; shows inline "Having trouble refreshing — retrying..." notice on error without clearing the existing order list.
 - **Receipt:** Distinguished between network failure and truly missing orders. Added loading state, fetch error state ("Could not load your receipt — Reload"), and items fetch error state (inline notice in items section).
 
