@@ -38,7 +38,7 @@ export default function Home() {
         <div className="container px-4 relative z-10">
           <div className="text-center space-y-4 md:space-y-6">
             <h1 className="text-4xl md:text-7xl font-bold font-sans tracking-tight text-white drop-shadow-md">
-              Welcome to Tatun's
+              Welcome to Tatuns
             </h1>
             <p className="text-lg md:text-2xl max-w-2xl mx-auto leading-relaxed font-sans text-gray-200 drop-shadow">
               Authentic Filipino cuisine and Tarlac's finest goat meat specialties, served with love.
@@ -186,7 +186,7 @@ export default function Home() {
           <ChefHat className="w-12 h-12 mx-auto text-primary-foreground mb-4 opacity-90" />
           <h2 className="text-3xl font-bold font-sans mb-6">About Us</h2>
           <p className="text-base md:text-lg text-primary-foreground/90 leading-relaxed mb-8 font-sans">
-            Tatun's Kambingan is a Filipino restaurant located in Tarlac City, Philippines,
+            Tatuns Kambingan is a Filipino restaurant located in Tarlac City, Philippines,
             that specializes in authentic goat meat dishes. The restaurant is popular for
             its stews, grilled specialties, and traditional Filipino comfort food. It is
             known for being a "must-visit" for food lovers seeking traditional Filipino cuisine.

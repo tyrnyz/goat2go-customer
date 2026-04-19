@@ -43,7 +43,7 @@
 
 **Project name:** Goat2Go
 
-**What it is:** A mobile-first web application that allows customers at Tatun's Kambingan (a Filipino restaurant in Tarlac City, Philippines) to scan a table QR code, browse the menu, build an order with optional add-ons, choose Dine-In or Take-Out, apply a PWD or Senior discount, place the order, receive a queue number, track order status, and self-cancel orders that have not yet been started by staff.
+**What it is:** A mobile-first web application that allows customers at Tatuns Kambingan (a Filipino restaurant in Tarlac City, Philippines) to scan a table QR code, browse the menu, build an order with optional add-ons, choose Dine-In or Take-Out, apply a PWD or Senior discount, place the order, receive a queue number, track order status, and self-cancel orders that have not yet been started by staff.
 
 **Who built it:** Tyrone Yazon (tyrnyz on GitHub, tyroneyazon@gmail.com). Capstone project, single-developer customer module. Ty is the only person who commits and pushes to the repository.
 
@@ -55,7 +55,7 @@
 
 **Current status (April 10, 2026):** Approximately 95% complete. All assessment items shipped. Cancellation feature shipped April 8. Final validation hardening pass shipped April 9. Code and database are lock-ready. Manual testing and deployment to Cloudflare Pages are the only remaining engineering tasks. Documentation (the four required documents plus a handoff doc) is the immediate next deliverable.
 
-**Restaurant context:** Tatun's Kambingan specializes in authentic Filipino goat meat dishes (Kaldereta, Kampukan, Papaitan) plus other Filipino comfort food. Located in Tarlac City. Operating hours: Monday-Saturday 9:00 AM-3:00 PM, closed Sunday. Single restaurant, no chain.
+**Restaurant context:** Tatuns Kambingan specializes in authentic Filipino goat meat dishes (Kaldereta, Kampukan, Papaitan) plus other Filipino comfort food. Located in Tarlac City. Operating hours: Monday-Saturday 9:00 AM-3:00 PM, closed Sunday. Single restaurant, no chain.
 
 ---
 
@@ -158,7 +158,7 @@ goat2go-customer-app/
 
 **Supabase over Firebase/custom backend:** Postgres-backed (familiar relational model, real foreign keys, real constraints, real RLS), generous free tier, auto-generated REST API removes the need to write a backend service, JS client handles auth flows. Critically, Supabase's Row Level Security model maps cleanly onto the shared-database integration with the SE2 team: anon role for customers, authenticated role for staff, RLS policies enforce isolation. A custom backend would have required coordinating two services on top of coordinating the shared schema.
 
-**Cloudflare Pages over Vercel/Netlify:** Free tier with no bandwidth caps, no project pausing, fastest global CDN, custom domain support included free. The customer app is a static SPA with no server functions, so any of the three would work, but Cloudflare's bandwidth policy is the most restaurant-friendly if Tatun's ever sees real traffic.
+**Cloudflare Pages over Vercel/Netlify:** Free tier with no bandwidth caps, no project pausing, fastest global CDN, custom domain support included free. The customer app is a static SPA with no server functions, so any of the three would work, but Cloudflare's bandwidth policy is the most restaurant-friendly if Tatuns ever sees real traffic.
 
 ### 2.4 The integration boundary with SE2
 
@@ -802,7 +802,7 @@ Indexes on `orders(sessionID, orderTimestamp DESC)`, `orders(orderTimestamp)`, a
 - Both `Receipt.tsx` and `QueueConfirmation.tsx` `handleCancel` functions refresh order state in the catch block, so the badge reflects what the server actually thinks even if the cancel attempt failed
 
 **Brand-restyled NotFound page:**
-- `NotFound.tsx` rewritten to use bg-background, text-primary, the Tatun's logo, and burgundy/gold colors
+- `NotFound.tsx` rewritten to use bg-background, text-primary, the Tatuns logo, and burgundy/gold colors
 
 **About page placeholder removal:**
 - QR generation section removed entirely

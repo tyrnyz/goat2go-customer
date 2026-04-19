@@ -43,7 +43,7 @@ export default function Header({ onCartClick }: HeaderProps = {}) {
           <div className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer" onClick={() => navigate("/")}>
             <img
               src="/other_images/tatuns_logo.png"
-              alt="Tatun's Kambingan Logo"
+              alt="Tatuns Kambingan Logo"
               className="h-8 sm:h-10 md:h-16 lg:h-20 w-auto object-contain"
             />
             <div className="flex flex-col justify-center">
@@ -51,7 +51,7 @@ export default function Header({ onCartClick }: HeaderProps = {}) {
                 className="text-[11px] sm:text-xs md:text-xl lg:text-3xl font-bold leading-tight whitespace-nowrap"
                 style={{ color: "#f4c27a", letterSpacing: "0.5px" }}
               >
-                Tatun's Kambingan
+                Tatuns Kambingan
               </h1>
               <p className="text-[8px] sm:text-[9px] md:text-xs whitespace-nowrap" style={{ color: "#f4c27a", opacity: 0.9 }}>
                 Authentic Filipino Restaurant

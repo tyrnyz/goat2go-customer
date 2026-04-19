@@ -7,7 +7,7 @@ import Header from "@/components/Header";
  */
 export default function Contact() {
   const restaurantInfo = {
-    name: "Tatun's Kambingan",
+    name: "Tatuns Kambingan",
     address: "Tarlac City, Philippines",
     fullAddress: "123 Main Street, Brgy. San Nicolas, Tarlac City 2300",
     phone: "+63 (123) 456-789",
@@ -118,11 +118,11 @@ export default function Contact() {
           <div className="bg-white rounded-xl overflow-hidden shadow-lg border" style={{ borderColor: "#f4c27a" }}>
             <div className="w-full h-96">
               <iframe
-                title="Tatun's Kambingan Location"
+                title="Tatuns Kambingan Location"
                 width="100%"
                 height="100%"
                 frameBorder="0"
-                src="https://maps.google.com/maps?q=Tatun's%20Kambingan,%20Tarlac%20City&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                src="https://maps.google.com/maps?q=Tatuns%20Kambingan,%20Tarlac%20City&t=&z=15&ie=UTF8&iwloc=&output=embed"
                 allowFullScreen={false}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
@@ -133,7 +133,7 @@ export default function Contact() {
               <button
                 onClick={() =>
                   window.open(
-                    "https://maps.google.com/maps?q=Tatun's+Kambingan,+Tarlac+City",
+                    "https://maps.google.com/maps?q=Tatuns+Kambingan,+Tarlac+City",
                     "_blank"
                   )
                 }

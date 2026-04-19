@@ -9,7 +9,7 @@ export default function NotFound() {
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background px-4">
       <img
         src="/other_images/tatuns_logo.png"
-        alt="Tatun's Kambingan"
+        alt="Tatuns Kambingan"
         className="h-20 w-auto object-contain mb-6 opacity-80"
       />
       <h1 className="text-6xl font-black text-primary mb-2 font-sans">404</h1>

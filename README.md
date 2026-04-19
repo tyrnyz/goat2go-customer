@@ -1,6 +1,6 @@
 # goat2go Customer
 
-Customer-facing web app for Tatun's Kambingan. Browse the menu, place dine-in or takeout orders, and track order status.
+Customer-facing web app for Tatuns Kambingan. Browse the menu, place dine-in or takeout orders, and track order status.
 
 ## Setup
 
