@@ -36,9 +36,6 @@ export const categories: MenuCategory[] = [
 
 const PLACEHOLDER_IMAGE = '/other_images/tatuns_logo.png';
 
-// Products classified as dessert regardless of DB type
-const DESSERT_NAMES = new Set(["Leche Flan", "Turon"]);
-
 function mapDbTypeToCategory(type: DbProduct['type']): string {
   switch (type) {
     case 'Vegetable': return 'vegetables';
@@ -46,14 +43,13 @@ function mapDbTypeToCategory(type: DbProduct['type']): string {
     case 'Fish': return 'fish';
     case 'Others': return 'addons';
     case 'Drinks': return 'drinks';
+    case 'Dessert': return 'dessert';
     default: return 'addons';
   }
 }
 
 export function mapDbProductToMenuItem(product: DbProduct, addons: DbAddon[], bestSellerIds?: Set<number>): MenuItem {
-  const category = DESSERT_NAMES.has(product.productName)
-    ? 'dessert'
-    : mapDbTypeToCategory(product.type);
+  const category = mapDbTypeToCategory(product.type);
 
   const hasAddOns = ['meat', 'fish', 'vegetables'].includes(category);
 

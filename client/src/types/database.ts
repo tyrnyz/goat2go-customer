@@ -6,7 +6,7 @@ export interface DbProduct {
   productName: string
   price: number
   status: 'AVAILABLE' | 'UNAVAILABLE'
-  type: 'Vegetable' | 'Meat' | 'Fish' | 'Others' | 'Drinks'
+  type: 'Vegetable' | 'Meat' | 'Fish' | 'Others' | 'Drinks' | 'Dessert'
   image_path: string | null
   description: string | null
   is_best_seller: boolean
